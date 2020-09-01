@@ -31,14 +31,17 @@ public:
 
 	void								swap(FormatContext& other);
 
-
+	int									writeHeader();
 
 	int									findBestStream(MediaType type) const;
 
+	int									play();
+	int									pause();
 	int									seek(int stream, int64_t timestamp);
 	int									seekAny(int stream, int64_t timestamp);
 	int									readPacket(Packet& pkt);
-
+	int									writePacket(Packet& pkt);
+	int									flush();
 
 private:
 	Handle								m_handle;

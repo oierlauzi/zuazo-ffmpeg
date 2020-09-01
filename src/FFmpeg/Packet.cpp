@@ -118,20 +118,24 @@ int Packet::getStreamIndex() const {
 
 
 Utils::BufferView<std::byte> Packet::getData() {
+	assert(m_handle);
 	return Utils::BufferView<std::byte>(reinterpret_cast<std::byte*>(m_handle->data), m_handle->size);
 }
 
 Utils::BufferView<const std::byte>Packet::getData() const {
+	assert(m_handle);
 	return Utils::BufferView<const std::byte>(reinterpret_cast<std::byte*>(m_handle->data), m_handle->size);
 }
 
 
 
 void Packet::shrink(size_t size) {
+	assert(m_handle);
 	av_shrink_packet(m_handle, size);
 }
 
 void Packet::grow(size_t size) {
+	assert(m_handle);
 	av_grow_packet(m_handle, size);
 }
 

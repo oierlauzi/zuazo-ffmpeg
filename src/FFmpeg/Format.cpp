@@ -41,18 +41,35 @@ void FormatContext::swap(FormatContext& other) {
 
 
 
+int FormatContext::writeHeader() {
+	return avformat_write_header(
+		m_handle,
+		nullptr
+	);
+}
+
+
+
 int FormatContext::findBestStream(MediaType type) const {
 	return av_find_best_stream(
 		m_handle,				//AVFormatContext handle
 		toFFmpeg(type),			//AVMediaType
-		0,						//Wanted stream number
-		0,						//Related stream
+		-1,						//Wanted stream number
+		-1,						//Related stream
 		nullptr,				//Decoder list
 		0						//Flags
 	);
 }
 
 
+
+int FormatContext::play() {
+	return av_read_play(m_handle);
+}
+
+int FormatContext::pause() {
+	return av_read_pause(m_handle);
+}
 
 int FormatContext::seek(int stream, int64_t timestamp) {
 	return av_seek_frame(
@@ -77,6 +94,17 @@ int FormatContext::readPacket(Packet& pkt) {
 		m_handle,				//AVFormatContext handle
 		static_cast<Packet::Handle>(pkt) //Packet handle
 	);
+}
+
+int FormatContext::writePacket(Packet& pkt) {
+	return av_interleaved_write_frame(
+		m_handle,				//AVFormatContext handle
+		static_cast<Packet::Handle>(pkt) //Packet handle
+	);
+}
+
+int FormatContext::flush() {
+	return avformat_flush(m_handle);
 }
 
 }

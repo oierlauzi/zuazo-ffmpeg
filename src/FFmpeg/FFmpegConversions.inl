@@ -15,8 +15,144 @@ constexpr Rational fromFFmpeg(AVRational rat) {
 
 
 
-constexpr AVPixelFormat toFFmpeg(ColorFormat fmt, ColorSubsampling subs, ColorModel model) {
-	if(isYCbCr(model)) {
+constexpr AVColorPrimaries toFFmpeg(ColorPrimaries prim) {
+	switch(prim) {
+	case ColorPrimaries::BT709:			return AVCOL_PRI_BT709;
+	case ColorPrimaries::BT2020:		return AVCOL_PRI_BT2020;
+	case ColorPrimaries::SMPTE432:		return AVCOL_PRI_SMPTE432;
+	//case ColorPrimaries::ADOBE_RGB:	return {}; /* NOT SUPPORTED */
+
+	default: 							return AVCOL_PRI_UNSPECIFIED;
+	}
+}
+
+constexpr ColorPrimaries fromFFmpeg(AVColorPrimaries prim) {
+	/*
+	 * Comments have been obtained from:
+	 * libavutil/pixfmt.h
+	 */
+
+	switch(prim) {
+	case AVCOL_PRI_BT709:       return ColorPrimaries::BT709;	//also ITU-R BT1361 / IEC 61966-2-4 / SMPTE RP177 Annex B
+	//case AVCOL_PRI_BT470M:    return {}; /*NOT SUPPORTED*/ 	//also FCC Title 47 Code of Federal Regulations 73.682 (a)(20)
+	//case AVCOL_PRI_BT470BG:   return {}; /*NOT SUPPORTED*/ 	//also ITU-R BT601-6 625 / ITU-R BT1358 625 / ITU-R BT1700 625 PAL & SECAM
+	//case AVCOL_PRI_SMPTE170M: return {}; /*NOT SUPPORTED*/ 	//also ITU-R BT601-6 525 / ITU-R BT1358 525 / ITU-R BT1700 NTSC
+	//case AVCOL_PRI_SMPTE240M: return {}; /*NOT SUPPORTED*/ 	//functionally identical to above
+	//case AVCOL_PRI_FILM:      return {}; /*NOT SUPPORTED*/ 	//colour filters using Illuminant C
+	case AVCOL_PRI_BT2020:      return ColorPrimaries::BT2020;	//ITU-R BT2020
+	//case AVCOL_PRI_SMPTE428:  return {}; /*NOT SUPPORTED*/ 	//SMPTE ST 428-1 (CIE 1931 XYZ)
+	//case AVCOL_PRI_SMPTE431:  return {}; /*NOT SUPPORTED*/ 	//SMPTE ST 431-2 (2011) / DCI P3
+	case AVCOL_PRI_SMPTE432:    return ColorPrimaries::SMPTE432;//SMPTE ST 432-1 (2010) / P3 D65 / Display P3
+	//case AVCOL_PRI_EBU3213:   return {}; /*NOT SUPPORTED*/ 	//EBU Tech. 3213-E / JEDEC P22 phosphors
+
+	default: 					return ColorPrimaries::NONE;
+	}
+}
+
+
+
+constexpr AVColorSpace toFFmpeg(ColorModel model) {
+	switch(model) {
+	case ColorModel::RGB:		return AVCOL_SPC_RGB;
+	case ColorModel::BT601:		return AVCOL_SPC_BT470BG;
+	case ColorModel::BT709:		return AVCOL_SPC_BT709;
+	case ColorModel::BT2020:	return AVCOL_SPC_BT2020_CL;
+
+	default: 					return AVCOL_SPC_UNSPECIFIED;
+	}
+}
+
+constexpr ColorModel fromFFmpeg(AVColorSpace model) {
+	/*
+	 * Comments have been obtained from:
+	 * libavutil/pixfmt.h
+	 */
+
+	switch(model) {
+	case AVCOL_SPC_RGB:					return ColorModel::RGB;			//order of coefficients is actually GBR, also IEC 61966-2-1 (sRGB)
+	case AVCOL_SPC_BT709:				return ColorModel::BT709;		//also ITU-R BT1361 / IEC 61966-2-4 xvYCC709 / SMPTE RP177 Annex B
+	//case AVCOL_SPC_FCC:				return {}; /*NOT SUPPORTED*/	//FCC Title 47 Code of Federal Regulations 73.682 (a)(20)
+	case AVCOL_SPC_BT470BG:				return ColorModel::BT601;		//also ITU-R BT601-6 625 / ITU-R BT1358 625 / ITU-R BT1700 625 PAL & SECAM / IEC 61966-2-4 xvYCC601
+	//case AVCOL_SPC_SMPTE170M:			return {}; /*NOT SUPPORTED*/	//also ITU-R BT601-6 525 / ITU-R BT1358 525 / ITU-R BT1700 NTSC
+	//case AVCOL_SPC_SMPTE240M:			return {}; /*NOT SUPPORTED*/	//functionally identical to above
+	//case AVCOL_SPC_YCGCO:				return {}; /*NOT SUPPORTED*/	//Used by Dirac / VC-2 and H.264 FRext, see ITU-T SG16					
+	//case AVCOL_SPC_BT2020_NCL:		return {}; /*NOT SUPPORTED*/	//ITU-R BT2020 non-constant luminance system
+	case AVCOL_SPC_BT2020_CL:			return ColorModel::BT2020;		//ITU-R BT2020 constant luminance system
+	//case AVCOL_SPC_SMPTE2085:			return {}; /*NOT SUPPORTED*/	//SMPTE 2085, Y'D'zD'x
+	//case AVCOL_SPC_CHROMA_DERIVED_NCL:return {}; /*NOT SUPPORTED*/	//Chromaticity-derived non-constant luminance system
+	//case AVCOL_SPC_CHROMA_DERIVED_CL:	return {}; /*NOT SUPPORTED*/	//Chromaticity-derived constant luminance system
+	//case AVCOL_SPC_ICTCP:				return {}; /*NOT SUPPORTED*/	//ITU-R BT.2100-0, ICtCp
+
+	default: 							return ColorModel::NONE;
+	}
+}
+
+
+constexpr AVColorTransferCharacteristic toFFmpeg(ColorTransferFunction func) {
+	switch(func) {
+	case ColorTransferFunction::LINEAR:			return AVCOL_TRC_LINEAR;
+	case ColorTransferFunction::IEC61966_2_1:	return AVCOL_TRC_IEC61966_2_1;
+
+	default: 									return AVCOL_TRC_UNSPECIFIED;
+	}
+}
+
+constexpr ColorTransferFunction fromFFmpeg(AVColorTransferCharacteristic func) {
+	/*
+	 * Comments have been obtained from:
+	 * libavutil/pixfmt.h
+	 */
+
+	switch(func) {
+    //case AVCOL_TRC_BT709:			return {}; /*NOT SUPPORTED*/ 				//also ITU-R BT1361
+    //case AVCOL_TRC_GAMMA22:		return {}; /*NOT SUPPORTED*/ 				//also ITU-R BT470M / ITU-R BT1700 625 PAL & SECAM
+    //case AVCOL_TRC_GAMMA28:		return {}; /*NOT SUPPORTED*/ 				//also ITU-R BT470BG
+    //case AVCOL_TRC_SMPTE170M:		return {}; /*NOT SUPPORTED*/ 				//also ITU-R BT601-6 525 or 625 / ITU-R BT1358 525 or 625 / ITU-R BT1700 NTSC
+    //case AVCOL_TRC_SMPTE240M:		return {}; /*NOT SUPPORTED*/
+    case AVCOL_TRC_LINEAR:			return ColorTransferFunction::LINEAR;		//"Linear transfer characteristics"
+    //case AVCOL_TRC_LOG:			return {}; /*NOT SUPPORTED*/ 				//"Logarithmic transfer characteristic (100:1 range)"
+    //case AVCOL_TRC_LOG_SQRT:		return {}; /*NOT SUPPORTED*/ 				//"Logarithmic transfer characteristic (100 * Sqrt(10) : 1 range)"
+    //case AVCOL_TRC_IEC61966_2_4:	return {}; /*NOT SUPPORTED*/ 				//IEC 61966-2-4
+    //case AVCOL_TRC_BT1361_ECG:	return {}; /*NOT SUPPORTED*/ 				//ITU-R BT1361 Extended Colour Gamut
+    case AVCOL_TRC_IEC61966_2_1:	return ColorTransferFunction::IEC61966_2_1;	//IEC 61966-2-1 (sRGB or sYCC)
+    //case AVCOL_TRC_BT2020_10:		return {}; /*NOT SUPPORTED*/ 				//ITU-R BT2020 for 10-bit system
+    //case AVCOL_TRC_BT2020_12:		return {}; /*NOT SUPPORTED*/ 				//ITU-R BT2020 for 12-bit system
+    //case AVCOL_TRC_SMPTE2084:		return {}; /*NOT SUPPORTED*/ 				//SMPTE ST 2084 for 10-, 12-, 14- and 16-bit systems
+    //case AVCOL_TRC_SMPTE428:		return {}; /*NOT SUPPORTED*/ 				//SMPTE ST 428-1
+    //case AVCOL_TRC_ARIB_STD_B67:	return {}; /*NOT SUPPORTED*/ 				//ARIB STD-B67, known as "Hybrid log-gamma"
+
+	default: 									return ColorTransferFunction::NONE;
+	}
+}
+
+
+
+constexpr AVColorRange toFFmpeg(ColorRange range) {
+	switch(range) {
+	case ColorRange::FULL:		
+		return AVCOL_RANGE_JPEG;
+
+	case ColorRange::ITU_NARROW_RGB:
+	case ColorRange::ITU_NARROW_YCBCR:	
+		return AVCOL_RANGE_MPEG;
+
+	default:
+		return AVCOL_RANGE_UNSPECIFIED;
+	}
+}
+
+constexpr ColorRange fromFFmpeg(AVColorRange range, bool isYcbCr) {
+	switch(range) {
+	case AVCOL_RANGE_JPEG:	return ColorRange::FULL;
+	case AVCOL_RANGE_MPEG: 	return isYcbCr ? ColorRange::ITU_NARROW_YCBCR : ColorRange::ITU_NARROW_RGB;
+	default: 				return ColorRange::NONE;
+	}
+}
+
+
+
+constexpr AVPixelFormat toFFmpeg(ColorFormat fmt, ColorSubsampling subs, bool isYCbCr) {
+	if(isYCbCr) {
 		switch(fmt) {
 		//8bpc
 		case ColorFormat::B8G8R8G8:					return AV_PIX_FMT_UYVY422;
@@ -203,12 +339,12 @@ constexpr AVPixelFormat toFFmpeg(ColorFormat fmt, ColorSubsampling subs, ColorMo
 
 constexpr std::tuple<ColorFormat, ColorSubsampling> fromFFmpeg(AVPixelFormat fmt) {
 	/*
-	 * Format comments have been obtained from:
-	 * libavutil/pixfmt.h
-	 * 
-	 * U = Cb => B
-	 * V = Cr => R
-	 */
+	* Comments have been obtained from:
+	* libavutil/pixfmt.h
+	* 
+	* U = Cb => B
+	* V = Cr => R
+	*/
 
 	switch(fmt) {
 	case AV_PIX_FMT_YUV420P:			return { ColorFormat::G8_B8_R8, ColorSubsampling::RB_420 };				//planar YUV 4:2:0, 12bpp, (1 Cr & Cb sample per 2x2 Y samples)
@@ -237,151 +373,151 @@ constexpr std::tuple<ColorFormat, ColorSubsampling> fromFFmpeg(AVPixelFormat fmt
 	case AV_PIX_FMT_NV12:	    		return { ColorFormat::G8_B8R8, ColorSubsampling::RB_420 };  			//planar YUV 4:2:0, 12bpp, 1 plane for Y and 1 plane for the UV components, which are interleaved (first byte U and the following byte V)
 	case AV_PIX_FMT_NV21:	    		return { ColorFormat::G8_R8B8, ColorSubsampling::RB_420 };				//as above, but U and V bytes are swapped
 
-    case AV_PIX_FMT_ARGB:				return { ColorFormat::A8R8G8B8, ColorSubsampling::RB_444 };				//packed ARGB 8:8:8:8, 32bpp, ARGBARGB...
-    case AV_PIX_FMT_RGBA:				return { ColorFormat::R8G8B8A8, ColorSubsampling::RB_444 };				//packed RGBA 8:8:8:8, 32bpp, RGBARGBA...
-    case AV_PIX_FMT_ABGR:				return { ColorFormat::A8B8G8R8, ColorSubsampling::RB_444 };				//packed ABGR 8:8:8:8, 32bpp, ABGRABGR...
-    case AV_PIX_FMT_BGRA:				return { ColorFormat::B8G8R8A8, ColorSubsampling::RB_444 };				//packed BGRA 8:8:8:8, 32bpp, BGRABGRA...
+	case AV_PIX_FMT_ARGB:				return { ColorFormat::A8R8G8B8, ColorSubsampling::RB_444 };				//packed ARGB 8:8:8:8, 32bpp, ARGBARGB...
+	case AV_PIX_FMT_RGBA:				return { ColorFormat::R8G8B8A8, ColorSubsampling::RB_444 };				//packed RGBA 8:8:8:8, 32bpp, RGBARGBA...
+	case AV_PIX_FMT_ABGR:				return { ColorFormat::A8B8G8R8, ColorSubsampling::RB_444 };				//packed ABGR 8:8:8:8, 32bpp, ABGRABGR...
+	case AV_PIX_FMT_BGRA:				return { ColorFormat::B8G8R8A8, ColorSubsampling::RB_444 };				//packed BGRA 8:8:8:8, 32bpp, BGRABGRA...
 
-    case AV_PIX_FMT_GRAY16:				return { ColorFormat::Y16, ColorSubsampling::RB_444 };					//       Y        , 16bpp
-    case AV_PIX_FMT_YUV440P:			return { ColorFormat::G8_B8_R8, ColorSubsampling::RB_440 };				//planar YUV 4:4:0 (1 Cr & Cb sample per 1x2 Y samples)
-    //case AV_PIX_FMT_YUVJ440P:			return {}; /* DEPRECATED */ 											//planar YUV 4:4:0 full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV440P and setting color_range
-    //case AV_PIX_FMT_YUVA420P:			return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:0, 20bpp, (1 Cr & Cb sample per 2x2 Y & A samples)
+	case AV_PIX_FMT_GRAY16:				return { ColorFormat::Y16, ColorSubsampling::RB_444 };					//       Y        , 16bpp
+	case AV_PIX_FMT_YUV440P:			return { ColorFormat::G8_B8_R8, ColorSubsampling::RB_440 };				//planar YUV 4:4:0 (1 Cr & Cb sample per 1x2 Y samples)
+	//case AV_PIX_FMT_YUVJ440P:			return {}; /* DEPRECATED */ 											//planar YUV 4:4:0 full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV440P and setting color_range
+	//case AV_PIX_FMT_YUVA420P:			return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:0, 20bpp, (1 Cr & Cb sample per 2x2 Y & A samples)
 
-    case AV_PIX_FMT_RGB48: 				return { ColorFormat::R16G16B16, ColorSubsampling::RB_444 }; 			//packed RGB 16:16:16, 48bpp, 16R, 16G, 16B, the 2-byte value for each R/G/B
-    case AV_PIX_FMT_RGB565: 			return { ColorFormat::R5G6B5_16, ColorSubsampling::RB_444 }; 			//packed RGB 5:6:5, 16bpp, (msb)   5R 6G 5B(lsb)
-    case AV_PIX_FMT_RGB555:				return { ColorFormat::X1R5G5B5_16, ColorSubsampling::RB_444 }; 			//packed RGB 5:5:5, 16bpp, (msb)1X 5R 5G 5B(lsb), X=unused/undefined
+	case AV_PIX_FMT_RGB48: 				return { ColorFormat::R16G16B16, ColorSubsampling::RB_444 }; 			//packed RGB 16:16:16, 48bpp, 16R, 16G, 16B, the 2-byte value for each R/G/B
+	case AV_PIX_FMT_RGB565: 			return { ColorFormat::R5G6B5_16, ColorSubsampling::RB_444 }; 			//packed RGB 5:6:5, 16bpp, (msb)   5R 6G 5B(lsb)
+	case AV_PIX_FMT_RGB555:				return { ColorFormat::X1R5G5B5_16, ColorSubsampling::RB_444 }; 			//packed RGB 5:5:5, 16bpp, (msb)1X 5R 5G 5B(lsb), X=unused/undefined
 
 	case AV_PIX_FMT_BGR48:   			return { ColorFormat::B16G16R16, ColorSubsampling::RB_444 }; 			//packed RGB 16:16:16, 48bpp, 16B, 16G, 16R, the 2-byte value for each R/G/B
-    case AV_PIX_FMT_BGR565:				return { ColorFormat::B5G6R5_16, ColorSubsampling::RB_444 }; 			//packed BGR 5:6:5, 16bpp, (msb)   5B 6G 5R(lsb)
-    case AV_PIX_FMT_BGR555:				return { ColorFormat::X1B5G5R5_16, ColorSubsampling::RB_444 }; 			//packed BGR 5:5:5, 16bpp, (msb)1X 5B 5G 5R(lsb), X=unused/undefined
+	case AV_PIX_FMT_BGR565:				return { ColorFormat::B5G6R5_16, ColorSubsampling::RB_444 }; 			//packed BGR 5:6:5, 16bpp, (msb)   5B 6G 5R(lsb)
+	case AV_PIX_FMT_BGR555:				return { ColorFormat::X1B5G5R5_16, ColorSubsampling::RB_444 }; 			//packed BGR 5:5:5, 16bpp, (msb)1X 5B 5G 5R(lsb), X=unused/undefined
 
-    case AV_PIX_FMT_YUV420P16: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_420 }; 			//planar YUV 4:2:0, 24bpp, (1 Cr & Cb sample per 2x2 Y samples)
-    case AV_PIX_FMT_YUV422P16: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_422 }; 			//planar YUV 4:2:2, 32bpp, (1 Cr & Cb sample per 2x1 Y samples)
-    case AV_PIX_FMT_YUV444P16: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_444 }; 			//planar YUV 4:4:4, 48bpp, (1 Cr & Cb sample per 1x1 Y samples)
-    //case AV_PIX_FMT_DXVA2_VLD: 		return {}; /* NOT SUPPORTED */   										//HW decoding through DXVA2, Picture.data[3] contains a LPDIRECT3DSURFACE9 pointer
+	case AV_PIX_FMT_YUV420P16: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_420 }; 			//planar YUV 4:2:0, 24bpp, (1 Cr & Cb sample per 2x2 Y samples)
+	case AV_PIX_FMT_YUV422P16: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_422 }; 			//planar YUV 4:2:2, 32bpp, (1 Cr & Cb sample per 2x1 Y samples)
+	case AV_PIX_FMT_YUV444P16: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_444 }; 			//planar YUV 4:4:4, 48bpp, (1 Cr & Cb sample per 1x1 Y samples)
+	//case AV_PIX_FMT_DXVA2_VLD: 		return {}; /* NOT SUPPORTED */   										//HW decoding through DXVA2, Picture.data[3] contains a LPDIRECT3DSURFACE9 pointer
 
-    case AV_PIX_FMT_RGB444:				return { ColorFormat::X4R4G4B4_16, ColorSubsampling::RB_444 }; 			//packed RGB 4:4:4, 16bpp, (msb)4X 4R 4G 4B(lsb), X=unused/undefined
-    case AV_PIX_FMT_BGR444: 			return { ColorFormat::X4B4G4R4_16, ColorSubsampling::RB_444 }; 			//packed BGR 4:4:4, 16bpp, (msb)4X 4B 4G 4R(lsb), X=unused/undefined
-    case AV_PIX_FMT_YA8:				return { ColorFormat::Y8A8, ColorSubsampling::RB_444 }; 				//8 bits gray, 8 bits alpha
+	case AV_PIX_FMT_RGB444:				return { ColorFormat::X4R4G4B4_16, ColorSubsampling::RB_444 }; 			//packed RGB 4:4:4, 16bpp, (msb)4X 4R 4G 4B(lsb), X=unused/undefined
+	case AV_PIX_FMT_BGR444: 			return { ColorFormat::X4B4G4R4_16, ColorSubsampling::RB_444 }; 			//packed BGR 4:4:4, 16bpp, (msb)4X 4B 4G 4R(lsb), X=unused/undefined
+	case AV_PIX_FMT_YA8:				return { ColorFormat::Y8A8, ColorSubsampling::RB_444 }; 				//8 bits gray, 8 bits alpha
 
-    /**
-     * The following 12 formats have the disadvantage of needing 1 format for each bit depth.
-     * Notice that each 9/10 bits sample is stored in 16 bits with extra padding.
-     * If you want to support multiple bit depths, then using AV_PIX_FMT_YUV420P16* with the bpp stored separately is better.
-     */
-    case AV_PIX_FMT_YUV420P9:			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_420 };	//planar YUV 4:2:0, 13.5bpp, (1 Cr & Cb sample per 2x2 Y samples)
-    case AV_PIX_FMT_YUV420P10:			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_420 };	//planar YUV 4:2:0, 15bpp, (1 Cr & Cb sample per 2x2 Y samples)
-    case AV_PIX_FMT_YUV422P10:			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_422 };	//planar YUV 4:2:2, 20bpp, (1 Cr & Cb sample per 2x1 Y samples)
-    case AV_PIX_FMT_YUV444P9:			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_444 };	//planar YUV 4:4:4, 27bpp, (1 Cr & Cb sample per 1x1 Y samples)
-    case AV_PIX_FMT_YUV444P10:			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_444 };	//planar YUV 4:4:4, 30bpp, (1 Cr & Cb sample per 1x1 Y samples)
-    case AV_PIX_FMT_YUV422P9:			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_422 };	//planar YUV 4:2:2, 18bpp, (1 Cr & Cb sample per 2x1 Y samples)
-    case AV_PIX_FMT_GBRP:				return { ColorFormat::G8_B8_R8, ColorSubsampling::RB_444 }; 			//planar GBR 4:4:4 24bpp
-    case AV_PIX_FMT_GBRP9:				return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_444 };	//planar GBR 4:4:4 27bpp
-    case AV_PIX_FMT_GBRP10:				return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_444 };	//planar GBR 4:4:4 30bpp
-    case AV_PIX_FMT_GBRP16:				return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_444 };			//planar GBR 4:4:4 48bpp
-    //case AV_PIX_FMT_YUVA422P:			return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:2 24bpp, (1 Cr & Cb sample per 2x1 Y & A samples)
+	/**
+	 * The following 12 formats have the disadvantage of needing 1 format for each bit depth.
+	 * Notice that each 9/10 bits sample is stored in 16 bits with extra padding.
+	 * If you want to support multiple bit depths, then using AV_PIX_FMT_YUV420P16* with the bpp stored separately is better.
+	 */
+	case AV_PIX_FMT_YUV420P9:			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_420 };	//planar YUV 4:2:0, 13.5bpp, (1 Cr & Cb sample per 2x2 Y samples)
+	case AV_PIX_FMT_YUV420P10:			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_420 };	//planar YUV 4:2:0, 15bpp, (1 Cr & Cb sample per 2x2 Y samples)
+	case AV_PIX_FMT_YUV422P10:			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_422 };	//planar YUV 4:2:2, 20bpp, (1 Cr & Cb sample per 2x1 Y samples)
+	case AV_PIX_FMT_YUV444P9:			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_444 };	//planar YUV 4:4:4, 27bpp, (1 Cr & Cb sample per 1x1 Y samples)
+	case AV_PIX_FMT_YUV444P10:			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_444 };	//planar YUV 4:4:4, 30bpp, (1 Cr & Cb sample per 1x1 Y samples)
+	case AV_PIX_FMT_YUV422P9:			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_422 };	//planar YUV 4:2:2, 18bpp, (1 Cr & Cb sample per 2x1 Y samples)
+	case AV_PIX_FMT_GBRP:				return { ColorFormat::G8_B8_R8, ColorSubsampling::RB_444 }; 			//planar GBR 4:4:4 24bpp
+	case AV_PIX_FMT_GBRP9:				return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_444 };	//planar GBR 4:4:4 27bpp
+	case AV_PIX_FMT_GBRP10:				return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_444 };	//planar GBR 4:4:4 30bpp
+	case AV_PIX_FMT_GBRP16:				return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_444 };			//planar GBR 4:4:4 48bpp
+	//case AV_PIX_FMT_YUVA422P:			return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:2 24bpp, (1 Cr & Cb sample per 2x1 Y & A samples)
 	//case AV_PIX_FMT_YUVA444P:			return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:4:4 32bpp, (1 Cr & Cb sample per 1x1 Y & A samples)
-    //case AV_PIX_FMT_YUVA420P9:		return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:0 22.5bpp, (1 Cr & Cb sample per 2x2 Y & A samples)
-    //case AV_PIX_FMT_YUVA422P9:		return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:2 27bpp, (1 Cr & Cb sample per 2x1 Y & A samples)
-    //case AV_PIX_FMT_YUVA444P9:		return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:4:4 36bpp, (1 Cr & Cb sample per 1x1 Y & A samples)
-    //case AV_PIX_FMT_YUVA420P10:		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:0 25bpp, (1 Cr & Cb sample per 2x2 Y & A samples)
-    //case AV_PIX_FMT_YUVA422P10:		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:2 30bpp, (1 Cr & Cb sample per 2x1 Y & A samples)
-    //case AV_PIX_FMT_YUVA444P10:		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:4:4 40bpp, (1 Cr & Cb sample per 1x1 Y & A samples)
-    //case AV_PIX_FMT_YUVA420P16:		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:0 40bpp, (1 Cr & Cb sample per 2x2 Y & A samples)
-    //case AV_PIX_FMT_YUVA422P16:		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:2 48bpp, (1 Cr & Cb sample per 2x1 Y & A samples)
-    //case AV_PIX_FMT_YUVA444P16:		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:4:4 64bpp, (1 Cr & Cb sample per 1x1 Y & A samples)
+	//case AV_PIX_FMT_YUVA420P9:		return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:0 22.5bpp, (1 Cr & Cb sample per 2x2 Y & A samples)
+	//case AV_PIX_FMT_YUVA422P9:		return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:2 27bpp, (1 Cr & Cb sample per 2x1 Y & A samples)
+	//case AV_PIX_FMT_YUVA444P9:		return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:4:4 36bpp, (1 Cr & Cb sample per 1x1 Y & A samples)
+	//case AV_PIX_FMT_YUVA420P10:		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:0 25bpp, (1 Cr & Cb sample per 2x2 Y & A samples)
+	//case AV_PIX_FMT_YUVA422P10:		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:2 30bpp, (1 Cr & Cb sample per 2x1 Y & A samples)
+	//case AV_PIX_FMT_YUVA444P10:		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:4:4 40bpp, (1 Cr & Cb sample per 1x1 Y & A samples)
+	//case AV_PIX_FMT_YUVA420P16:		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:0 40bpp, (1 Cr & Cb sample per 2x2 Y & A samples)
+	//case AV_PIX_FMT_YUVA422P16:		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:2 48bpp, (1 Cr & Cb sample per 2x1 Y & A samples)
+	//case AV_PIX_FMT_YUVA444P16:		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:4:4 64bpp, (1 Cr & Cb sample per 1x1 Y & A samples)
 
 	//case AV_PIX_FMT_VDPAU: 			return {}; /* NOT SUPPORTED */     										//HW acceleration through VDPAU, Picture.data[3] contains a VdpVideoSurface
 
 	//case AV_PIX_FMT_XYZ12:			return {}; /* NOT SUPPORTED */  										//packed XYZ 4:4:4, 36 bpp, (msb) 12X, 12Y, 12Z (lsb), the 2-byte value for each X/Y/Z, the 4 lower bits are set to 0
 
 
-    case AV_PIX_FMT_NV16: 				return { ColorFormat::G8_B8R8, ColorSubsampling::RB_422 };	 			//interleaved chroma YUV 4:2:2, 16bpp, (1 Cr & Cb sample per 2x1 Y samples)
-    case AV_PIX_FMT_NV20:      			return { ColorFormat::G10X6_B10X6R10X6_16, ColorSubsampling::RB_422 };	//interleaved chroma YUV 4:2:2, 20bpp, (1 Cr & Cb sample per 2x1 Y samples)
+	case AV_PIX_FMT_NV16: 				return { ColorFormat::G8_B8R8, ColorSubsampling::RB_422 };	 			//interleaved chroma YUV 4:2:2, 16bpp, (1 Cr & Cb sample per 2x1 Y samples)
+	case AV_PIX_FMT_NV20:      			return { ColorFormat::G10X6_B10X6R10X6_16, ColorSubsampling::RB_422 };	//interleaved chroma YUV 4:2:2, 20bpp, (1 Cr & Cb sample per 2x1 Y samples)
 
-    case AV_PIX_FMT_RGBA64:     		return { ColorFormat::R16G16B16A16, ColorSubsampling::RB_444 };			//packed RGBA 16:16:16:16, 64bpp, 16R, 16G, 16B, 16A, the 2-byte value for each R/G/B/A component
-    case AV_PIX_FMT_BGRA64:    			return { ColorFormat::B16G16R16A16, ColorSubsampling::RB_444 };			//packed RGBA 16:16:16:16, 64bpp, 16B, 16G, 16R, 16A, the 2-byte value for each R/G/B/A component
+	case AV_PIX_FMT_RGBA64:     		return { ColorFormat::R16G16B16A16, ColorSubsampling::RB_444 };			//packed RGBA 16:16:16:16, 64bpp, 16R, 16G, 16B, 16A, the 2-byte value for each R/G/B/A component
+	case AV_PIX_FMT_BGRA64:    			return { ColorFormat::B16G16R16A16, ColorSubsampling::RB_444 };			//packed RGBA 16:16:16:16, 64bpp, 16B, 16G, 16R, 16A, the 2-byte value for each R/G/B/A component
 
-    case AV_PIX_FMT_YVYU422:			return { ColorFormat::G8R8G8B8, ColorSubsampling::RB_422 };	 			//packed YUV 4:2:2, 16bpp, Y0 Cr Y1 Cb
+	case AV_PIX_FMT_YVYU422:			return { ColorFormat::G8R8G8B8, ColorSubsampling::RB_422 };	 			//packed YUV 4:2:2, 16bpp, Y0 Cr Y1 Cb
 
-    case AV_PIX_FMT_YA16:      			return { ColorFormat::Y16A16, ColorSubsampling::RB_444 }; 				//16 bits gray, 16 bits alpha
+	case AV_PIX_FMT_YA16:      			return { ColorFormat::Y16A16, ColorSubsampling::RB_444 }; 				//16 bits gray, 16 bits alpha
 
-    //case AV_PIX_FMT_GBRAP:  			return	{} /* NOT SUPPORTED TODO: Add support*/							//planar GBRA 4:4:4:4 32bpp
-    //case AV_PIX_FMT_GBRAP16:  		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar GBRA 4:4:4:4 64bpp
+	//case AV_PIX_FMT_GBRAP:  			return	{} /* NOT SUPPORTED TODO: Add support*/							//planar GBRA 4:4:4:4 32bpp
+	//case AV_PIX_FMT_GBRAP16:  		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar GBRA 4:4:4:4 64bpp
 
 	//case AV_PIX_FMT_QSV: 				return {}; /* NOT SUPPORTED */ 											//HW acceleration through QSV, data[3] contains a pointer to the mfxFrameSurface1 structure.
 	//case AV_PIX_FMT_MMAL: 			return {}; /* NOT SUPPORTED */ 											//HW acceleration though MMAL, data[3] contains a pointer to the MMAL_BUFFER_HEADER_T structure.
 	//case AV_PIX_FMT_D3D11VA_VLD: 		return {}; /* NOT SUPPORTED */ 											//HW decoding through Direct3D11 via old API, Picture.data[3] contains a ID3D11VideoDecoderOutputView pointer
 	//case AV_PIX_FMT_CUDA: 			return {}; /* NOT SUPPORTED */
 
-    case AV_PIX_FMT_0RGB: 				return { ZUAZO_BE_LE(ColorFormat::X8R8G8B8_32, ColorFormat::B8G8R8X8_32), ColorSubsampling::RB_444 };  //packed RGB 8:8:8, 32bpp, XRGBXRGB...   X=unused/undefined
-    case AV_PIX_FMT_RGB0: 				return { ZUAZO_BE_LE(ColorFormat::R8G8B8X8_32, ColorFormat::X8B8G8R8_32), ColorSubsampling::RB_444 };  //packed RGB 8:8:8, 32bpp, RGBXRGBX...   X=unused/undefined
-    case AV_PIX_FMT_0BGR: 				return { ZUAZO_BE_LE(ColorFormat::X8B8G8R8_32, ColorFormat::R8G8B8X8_32), ColorSubsampling::RB_444 };  //packed BGR 8:8:8, 32bpp, XBGRXBGR...   X=unused/undefined
-    case AV_PIX_FMT_BGR0: 				return { ZUAZO_BE_LE(ColorFormat::B8G8R8X8_32, ColorFormat::X8R8G8B8_32), ColorSubsampling::RB_444 };  //packed BGR 8:8:8, 32bpp, BGRXBGRX...   X=unused/undefined
+	case AV_PIX_FMT_0RGB: 				return { ZUAZO_BE_LE(ColorFormat::X8R8G8B8_32, ColorFormat::B8G8R8X8_32), ColorSubsampling::RB_444 };  //packed RGB 8:8:8, 32bpp, XRGBXRGB...   X=unused/undefined
+	case AV_PIX_FMT_RGB0: 				return { ZUAZO_BE_LE(ColorFormat::R8G8B8X8_32, ColorFormat::X8B8G8R8_32), ColorSubsampling::RB_444 };  //packed RGB 8:8:8, 32bpp, RGBXRGBX...   X=unused/undefined
+	case AV_PIX_FMT_0BGR: 				return { ZUAZO_BE_LE(ColorFormat::X8B8G8R8_32, ColorFormat::R8G8B8X8_32), ColorSubsampling::RB_444 };  //packed BGR 8:8:8, 32bpp, XBGRXBGR...   X=unused/undefined
+	case AV_PIX_FMT_BGR0: 				return { ZUAZO_BE_LE(ColorFormat::B8G8R8X8_32, ColorFormat::X8R8G8B8_32), ColorSubsampling::RB_444 };  //packed BGR 8:8:8, 32bpp, BGRXBGRX...   X=unused/undefined
 
-    case AV_PIX_FMT_YUV420P12: 			return { ColorFormat::G12X4_B12X4_R12X4_16, ColorSubsampling::RB_420 };	//planar YUV 4:2:0,18bpp, (1 Cr & Cb sample per 2x2 Y samples)
-    case AV_PIX_FMT_YUV420P14: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_420 };			//planar YUV 4:2:0,21bpp, (1 Cr & Cb sample per 2x2 Y samples)
-    case AV_PIX_FMT_YUV422P12: 			return { ColorFormat::G12X4_B12X4_R12X4_16, ColorSubsampling::RB_422 };	//planar YUV 4:2:2,24bpp, (1 Cr & Cb sample per 2x1 Y samples)
-    case AV_PIX_FMT_YUV422P14: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_422 };			//planar YUV 4:2:2,28bpp, (1 Cr & Cb sample per 2x1 Y samples)
-    case AV_PIX_FMT_YUV444P12: 			return { ColorFormat::G12X4_B12X4_R12X4_16, ColorSubsampling::RB_444 };	//planar YUV 4:4:4,36bpp, (1 Cr & Cb sample per 1x1 Y samples)
-    case AV_PIX_FMT_YUV444P14: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_444 };			//planar YUV 4:4:4,42bpp, (1 Cr & Cb sample per 1x1 Y samples)
-    case AV_PIX_FMT_GBRP12:    			return { ColorFormat::G12X4_B12X4_R12X4_16, ColorSubsampling::RB_444 };	//planar GBR 4:4:4 36bpp
-    case AV_PIX_FMT_GBRP14:    			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_444 };			//planar GBR 4:4:4 42bpp
-    //case AV_PIX_FMT_YUVJ411P:			return {}; /* DEPRECATED */ 	    									//planar YUV 4:1:1, 12bpp, (1 Cr & Cb sample per 4x1 Y samples) full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV411P and setting color_range
+	case AV_PIX_FMT_YUV420P12: 			return { ColorFormat::G12X4_B12X4_R12X4_16, ColorSubsampling::RB_420 };	//planar YUV 4:2:0,18bpp, (1 Cr & Cb sample per 2x2 Y samples)
+	case AV_PIX_FMT_YUV420P14: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_420 };			//planar YUV 4:2:0,21bpp, (1 Cr & Cb sample per 2x2 Y samples)
+	case AV_PIX_FMT_YUV422P12: 			return { ColorFormat::G12X4_B12X4_R12X4_16, ColorSubsampling::RB_422 };	//planar YUV 4:2:2,24bpp, (1 Cr & Cb sample per 2x1 Y samples)
+	case AV_PIX_FMT_YUV422P14: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_422 };			//planar YUV 4:2:2,28bpp, (1 Cr & Cb sample per 2x1 Y samples)
+	case AV_PIX_FMT_YUV444P12: 			return { ColorFormat::G12X4_B12X4_R12X4_16, ColorSubsampling::RB_444 };	//planar YUV 4:4:4,36bpp, (1 Cr & Cb sample per 1x1 Y samples)
+	case AV_PIX_FMT_YUV444P14: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_444 };			//planar YUV 4:4:4,42bpp, (1 Cr & Cb sample per 1x1 Y samples)
+	case AV_PIX_FMT_GBRP12:    			return { ColorFormat::G12X4_B12X4_R12X4_16, ColorSubsampling::RB_444 };	//planar GBR 4:4:4 36bpp
+	case AV_PIX_FMT_GBRP14:    			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_444 };			//planar GBR 4:4:4 42bpp
+	//case AV_PIX_FMT_YUVJ411P:			return {}; /* DEPRECATED */ 	    									//planar YUV 4:1:1, 12bpp, (1 Cr & Cb sample per 4x1 Y samples) full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV411P and setting color_range
 
-    //case AV_PIX_FMT_BAYER_BGGR8:  	return {}; /* NOT SUPPORTED */ 											//bayer, BGBG..(odd line), GRGR..(even line), 8-bit samples
-    //case AV_PIX_FMT_BAYER_RGGB8:  	return {}; /* NOT SUPPORTED */ 											//bayer, RGRG..(odd line), GBGB..(even line), 8-bit samples
-    //case AV_PIX_FMT_BAYER_GBRG8:  	return {}; /* NOT SUPPORTED */ 											//bayer, GBGB..(odd line), RGRG..(even line), 8-bit samples
-    //case AV_PIX_FMT_BAYER_GRBG8:  	return {}; /* NOT SUPPORTED */ 											//bayer, GRGR..(odd line), BGBG..(even line), 8-bit samples
-    //case AV_PIX_FMT_BAYER_BGGR16:		return {}; /* NOT SUPPORTED */ 											//bayer, BGBG..(odd line), GRGR..(even line), 16-bit samples
-    //case AV_PIX_FMT_BAYER_RGGB16:		return {}; /* NOT SUPPORTED */ 											//bayer, RGRG..(odd line), GBGB..(even line), 16-bit samples
-    //case AV_PIX_FMT_BAYER_GBRG16:		return {}; /* NOT SUPPORTED */ 											//bayer, GBGB..(odd line), RGRG..(even line), 16-bit samples
-    //case AV_PIX_FMT_BAYER_GRBG16:		return {}; /* NOT SUPPORTED */ 											//bayer, GRGR..(odd line), BGBG..(even line), 16-bit samples
+	//case AV_PIX_FMT_BAYER_BGGR8:  	return {}; /* NOT SUPPORTED */ 											//bayer, BGBG..(odd line), GRGR..(even line), 8-bit samples
+	//case AV_PIX_FMT_BAYER_RGGB8:  	return {}; /* NOT SUPPORTED */ 											//bayer, RGRG..(odd line), GBGB..(even line), 8-bit samples
+	//case AV_PIX_FMT_BAYER_GBRG8:  	return {}; /* NOT SUPPORTED */ 											//bayer, GBGB..(odd line), RGRG..(even line), 8-bit samples
+	//case AV_PIX_FMT_BAYER_GRBG8:  	return {}; /* NOT SUPPORTED */ 											//bayer, GRGR..(odd line), BGBG..(even line), 8-bit samples
+	//case AV_PIX_FMT_BAYER_BGGR16:		return {}; /* NOT SUPPORTED */ 											//bayer, BGBG..(odd line), GRGR..(even line), 16-bit samples
+	//case AV_PIX_FMT_BAYER_RGGB16:		return {}; /* NOT SUPPORTED */ 											//bayer, RGRG..(odd line), GBGB..(even line), 16-bit samples
+	//case AV_PIX_FMT_BAYER_GBRG16:		return {}; /* NOT SUPPORTED */ 											//bayer, GBGB..(odd line), RGRG..(even line), 16-bit samples
+	//case AV_PIX_FMT_BAYER_GRBG16:		return {}; /* NOT SUPPORTED */ 											//bayer, GRGR..(odd line), BGBG..(even line), 16-bit samples
 
-    //case AV_PIX_FMT_XVMC:				return {}; /* NOT SUPPORTED */											//XVideo Motion Acceleration via common packet passing
+	//case AV_PIX_FMT_XVMC:				return {}; /* NOT SUPPORTED */											//XVideo Motion Acceleration via common packet passing
 
-    case AV_PIX_FMT_YUV440P10: 			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_440 };	//planar YUV 4:4:0,20bpp, (1 Cr & Cb sample per 1x2 Y samples)
-    case AV_PIX_FMT_YUV440P12: 			return { ColorFormat::G12X4_B12X4_R12X4_16, ColorSubsampling::RB_440 };	//planar YUV 4:4:0,24bpp, (1 Cr & Cb sample per 1x2 Y samples)
-    //case AV_PIX_FMT_AYUV64:   		return	{} /* NOT SUPPORTED TODO: Add support*/	 						//packed AYUV 4:4:4,64bpp (1 Cr & Cb sample per 1x1 Y & A samples)
+	case AV_PIX_FMT_YUV440P10: 			return { ColorFormat::G10X6_B10X6_R10X6_16, ColorSubsampling::RB_440 };	//planar YUV 4:4:0,20bpp, (1 Cr & Cb sample per 1x2 Y samples)
+	case AV_PIX_FMT_YUV440P12: 			return { ColorFormat::G12X4_B12X4_R12X4_16, ColorSubsampling::RB_440 };	//planar YUV 4:4:0,24bpp, (1 Cr & Cb sample per 1x2 Y samples)
+	//case AV_PIX_FMT_AYUV64:   		return	{} /* NOT SUPPORTED TODO: Add support*/	 						//packed AYUV 4:4:4,64bpp (1 Cr & Cb sample per 1x1 Y & A samples)
 
-    //case AV_PIX_FMT_VIDEOTOOLBOX:		return {}; /* NOT SUPPORTED */											//hardware decoding through Videotoolbox
+	//case AV_PIX_FMT_VIDEOTOOLBOX:		return {}; /* NOT SUPPORTED */											//hardware decoding through Videotoolbox
 
-    case AV_PIX_FMT_P010: 				return { ColorFormat::G10X6_B10X6R10X6_16, ColorSubsampling::RB_420 };	//like NV12, with 10bpp per component, data in the high bits, zeros in the low bits
+	case AV_PIX_FMT_P010: 				return { ColorFormat::G10X6_B10X6R10X6_16, ColorSubsampling::RB_420 };	//like NV12, with 10bpp per component, data in the high bits, zeros in the low bits
 
-    //case AV_PIX_FMT_GBRAP12:  		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar GBR 4:4:4:4 48bpp
-    //case AV_PIX_FMT_GBRAP10:  		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar GBR 4:4:4:4 40bpp
+	//case AV_PIX_FMT_GBRAP12:  		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar GBR 4:4:4:4 48bpp
+	//case AV_PIX_FMT_GBRAP10:  		return	{} /* NOT SUPPORTED TODO: Add support*/							//planar GBR 4:4:4:4 40bpp
 
-    //case AV_PIX_FMT_MEDIACODEC: 		return {}; /* NOT SUPPORTED */											//hardware decoding through MediaCodec
+	//case AV_PIX_FMT_MEDIACODEC: 		return {}; /* NOT SUPPORTED */											//hardware decoding through MediaCodec
 
-    case AV_PIX_FMT_GRAY12:   			return { ColorFormat::Y12X4_16, ColorSubsampling::RB_444 };				//       Y        , 12bpp
-    case AV_PIX_FMT_GRAY10:   			return { ColorFormat::Y10X6_16, ColorSubsampling::RB_444 };				//       Y        , 10bpp
+	case AV_PIX_FMT_GRAY12:   			return { ColorFormat::Y12X4_16, ColorSubsampling::RB_444 };				//       Y        , 12bpp
+	case AV_PIX_FMT_GRAY10:   			return { ColorFormat::Y10X6_16, ColorSubsampling::RB_444 };				//       Y        , 10bpp
 
-    case AV_PIX_FMT_P016:  				return { ColorFormat::G16_B16R16, ColorSubsampling::RB_420 };			//like NV12, with 16bpp per component
+	case AV_PIX_FMT_P016:  				return { ColorFormat::G16_B16R16, ColorSubsampling::RB_420 };			//like NV12, with 16bpp per component
 
-    //case AV_PIX_FMT_D3D11:			return {}; /* NOT SUPPORTED */											//Hardware surfaces for Direct3D11.
+	//case AV_PIX_FMT_D3D11:			return {}; /* NOT SUPPORTED */											//Hardware surfaces for Direct3D11.
 
-    case AV_PIX_FMT_GRAY9:				return { ColorFormat::Y10X6_16, ColorSubsampling::RB_444 };				//       Y        , 9bpp
+	case AV_PIX_FMT_GRAY9:				return { ColorFormat::Y10X6_16, ColorSubsampling::RB_444 };				//       Y        , 9bpp
 
-    case AV_PIX_FMT_GBRPF32:  			return {}; /* NOT SUPPORTED TODO: Add support*/							//IEEE-754 single precision planar GBR 4:4:4,     96bpp
-    case AV_PIX_FMT_GBRAPF32: 			return {}; /* NOT SUPPORTED TODO: Add support*/							//IEEE-754 single precision planar GBRA 4:4:4:4, 128bpp
+	case AV_PIX_FMT_GBRPF32:  			return {}; /* NOT SUPPORTED TODO: Add support*/							//IEEE-754 single precision planar GBR 4:4:4,     96bpp
+	case AV_PIX_FMT_GBRAPF32: 			return {}; /* NOT SUPPORTED TODO: Add support*/							//IEEE-754 single precision planar GBRA 4:4:4:4, 128bpp
 
-    //case AV_PIX_FMT_DRM_PRIME:		return {}; /* NOT SUPPORTED */											//DRM-managed buffers exposed through PRIME buffer sharing.
+	//case AV_PIX_FMT_DRM_PRIME:		return {}; /* NOT SUPPORTED */											//DRM-managed buffers exposed through PRIME buffer sharing.
 
-    //case AV_PIX_FMT_OPENCL:			return {}; /* NOT SUPPORTED */											//Hardware surfaces for OpenCL.
+	//case AV_PIX_FMT_OPENCL:			return {}; /* NOT SUPPORTED */											//Hardware surfaces for OpenCL.
 
-    case AV_PIX_FMT_GRAY14:   			return { ColorFormat::Y16, ColorSubsampling::RB_444 };					//       Y        , 14bpp
+	case AV_PIX_FMT_GRAY14:   			return { ColorFormat::Y16, ColorSubsampling::RB_444 };					//       Y        , 14bpp
 
-    case AV_PIX_FMT_GRAYF32:  			return { ColorFormat::Y32f, ColorSubsampling::RB_444 };					//IEEE-754 single precision Y, 32bpp
+	case AV_PIX_FMT_GRAYF32:  			return { ColorFormat::Y32f, ColorSubsampling::RB_444 };					//IEEE-754 single precision Y, 32bpp
 
-    //case AV_PIX_FMT_YUVA422P12: 		return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:2,24bpp, (1 Cr & Cb sample per 2x1 Y samples), 12b alpha
-    //case AV_PIX_FMT_YUVA444P12: 		return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:4:4,36bpp, (1 Cr & Cb sample per 1x1 Y samples), 12b alpha
+	//case AV_PIX_FMT_YUVA422P12: 		return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:2:2,24bpp, (1 Cr & Cb sample per 2x1 Y samples), 12b alpha
+	//case AV_PIX_FMT_YUVA444P12: 		return {}; /* NOT SUPPORTED TODO: Add support*/							//planar YUV 4:4:4,36bpp, (1 Cr & Cb sample per 1x1 Y samples), 12b alpha
 
-    case AV_PIX_FMT_NV24:      			return { ColorFormat::G8_B8R8, ColorSubsampling::RB_444 };				//planar YUV 4:4:4, 24bpp, 1 plane for Y and 1 plane for the UV components, which are interleaved (first byte U and the following byte V)
-    case AV_PIX_FMT_NV42:     			return { ColorFormat::G8_R8B8, ColorSubsampling::RB_444 };				//as above, but U and V bytes are swapped
+	case AV_PIX_FMT_NV24:      			return { ColorFormat::G8_B8R8, ColorSubsampling::RB_444 };				//planar YUV 4:4:4, 24bpp, 1 plane for Y and 1 plane for the UV components, which are interleaved (first byte U and the following byte V)
+	case AV_PIX_FMT_NV42:     			return { ColorFormat::G8_R8B8, ColorSubsampling::RB_444 };				//as above, but U and V bytes are swapped
 
-    //case AV_PIX_FMT_VULKAN:			return {}; /* NOT SUPPORTED */											//Vulkan hardware images.
+	//case AV_PIX_FMT_VULKAN:			return {}; /* NOT SUPPORTED */											//Vulkan hardware images.
 
-    case AV_PIX_FMT_Y210:   			return { ColorFormat::G10X6B10X6G10X6R10X6_16, ColorSubsampling::RB_444 };//packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits
+	case AV_PIX_FMT_Y210:   			return { ColorFormat::G10X6B10X6G10X6R10X6_16, ColorSubsampling::RB_444 };//packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits
 
 
 	default: return { ColorFormat::NONE, ColorSubsampling::NONE };
