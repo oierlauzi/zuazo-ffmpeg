@@ -48,6 +48,7 @@ public:
 
 private:
 	Handle								m_handle;
+	
 };
 
 }
