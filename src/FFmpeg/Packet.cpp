@@ -69,74 +69,84 @@ void Packet::swap(Packet& other) {
 
 
 
+void Packet::unref() {
+	av_packet_unref(&get());
+}
+
+
+
 void Packet::setPTS(int64_t pts) {
-	assert(m_handle);
-	m_handle->pts = pts;
+	get().pts = pts;
 }
 
 int64_t Packet::getPTS() const {
-	assert(m_handle);
-	return m_handle->pts;
+	return get().pts;
 }
-
 
 
 void Packet::setDTS(int64_t dts) {
-	assert(m_handle);
-	m_handle->dts = dts;
+	get().dts = dts;
 }
 
 int64_t Packet::getDTS() const {
-	assert(m_handle);
-	return m_handle->dts;
+	return get().dts;
 }
-
 
 
 void Packet::setDuration(int64_t duration) {
-	assert(m_handle);
-	m_handle->duration = duration; 
+	get().duration = duration; 
 }
 
 int64_t Packet::getDuration() const {
-	assert(m_handle);
-	return m_handle->duration; 
+	return get().duration; 
 }
 
+
+void Packet::setPosition(int64_t pos) {
+	get().pos = pos; 
+}
+
+int64_t Packet::getPosition() const {
+	return get().pos;
+}
 
 
 void Packet::setStreamIndex(int idx) {
-	assert(m_handle);
-	m_handle->stream_index = idx; 
+	get().stream_index = idx; 
 }
 
 int Packet::getStreamIndex() const {
-	assert(m_handle);
-	return m_handle->stream_index; 
+	return get().stream_index; 
 }
-
 
 
 Utils::BufferView<std::byte> Packet::getData() {
-	assert(m_handle);
-	return Utils::BufferView<std::byte>(reinterpret_cast<std::byte*>(m_handle->data), m_handle->size);
+	return Utils::BufferView<std::byte>(reinterpret_cast<std::byte*>(get().data), get().size);
 }
 
 Utils::BufferView<const std::byte>Packet::getData() const {
-	assert(m_handle);
-	return Utils::BufferView<const std::byte>(reinterpret_cast<std::byte*>(m_handle->data), m_handle->size);
+	return Utils::BufferView<const std::byte>(reinterpret_cast<std::byte*>(get().data), get().size);
 }
-
 
 
 void Packet::shrink(size_t size) {
-	assert(m_handle);
-	av_shrink_packet(m_handle, size);
+	av_shrink_packet(&get(), size);
 }
 
 void Packet::grow(size_t size) {
+	av_grow_packet(&get(), size);
+}
+
+
+
+AVPacket& Packet::get() {
 	assert(m_handle);
-	av_grow_packet(m_handle, size);
+	return *m_handle;
+}
+
+const AVPacket& Packet::get() const {
+	assert(m_handle);
+	return *m_handle;
 }
 
 }

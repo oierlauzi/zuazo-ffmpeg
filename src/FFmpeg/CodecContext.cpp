@@ -1,8 +1,15 @@
 #include "CodecContext.h"
 
+#include <cassert>
+
 namespace Zuazo::FFmpeg {
 
-CodecContext::CodecContext(Codec codec) 
+CodecContext::CodecContext() 
+	: m_handle(nullptr)
+{
+}
+
+CodecContext::CodecContext(const AVCodec *codec) 
 	: m_handle(avcodec_alloc_context3(codec))
 {
 }
@@ -32,22 +39,22 @@ void CodecContext::swap(CodecContext& other) {
 
 
 
-void CodecContext::open(const Codec& codec) {
-	avcodec_open2(m_handle, codec, nullptr);
+int CodecContext::open(const AVCodec *codec) {
+	return avcodec_open2(&get(), codec, nullptr);
 }
 
 
 
-void CodecContext::setParameters(const AVCodecParameters& parameters) {
-	avcodec_parameters_to_context(m_handle, &parameters);
+int CodecContext::setParameters(const CodecParameters& parameters) {
+	return avcodec_parameters_to_context(&get(), parameters);
 }
 
-void CodecContext::getParameters(AVCodecParameters& parameters) const {
-	avcodec_parameters_from_context(&parameters, m_handle);
+int CodecContext::getParameters(CodecParameters& parameters) const {
+	return avcodec_parameters_from_context(parameters, &get());
 }
 
-AVCodecParameters CodecContext::getParameters() const {
-	AVCodecParameters result;
+CodecParameters CodecContext::getParameters() const {
+	CodecParameters result;
 	getParameters(result);
 	return result;
 }
@@ -55,19 +62,31 @@ AVCodecParameters CodecContext::getParameters() const {
 
 
 int CodecContext::sendPacket(const Packet& packet) {
-	return avcodec_send_packet(m_handle, packet);
+	return avcodec_send_packet(&get(), packet);
 }
 
 int CodecContext::readPacket(Packet& packet) {
-	return avcodec_receive_packet(m_handle, packet);
+	return avcodec_receive_packet(&get(), packet);
 }
 
 int CodecContext::sendFrame(const Frame& frame) {
-	return avcodec_send_frame(m_handle, frame);
+	return avcodec_send_frame(&get(), frame);
 }
 
 int CodecContext::readFrame(Frame& frame) {
-	return avcodec_receive_frame(m_handle, frame);
+	return avcodec_receive_frame(&get(), frame);
+}
+
+
+
+AVCodecContext& CodecContext::get() {
+	assert(m_handle);
+	return *m_handle;
+}
+
+const AVCodecContext& CodecContext::get() const {
+	assert(m_handle);
+	return *m_handle;
 }
 
 

@@ -28,6 +28,8 @@ public:
 
 	void								swap(Packet& other);
 
+	void								unref();
+
 	void								setPTS(int64_t pts);
 	int64_t								getPTS() const;
 
@@ -36,6 +38,9 @@ public:
 
 	void								setDuration(int64_t duration);
 	int64_t								getDuration() const;
+
+	void								setPosition(int64_t pos);
+	int64_t								getPosition() const;
 	
 	void								setStreamIndex(int idx);
 	int									getStreamIndex() const;
@@ -48,6 +53,9 @@ public:
 
 private:
 	Handle								m_handle;
+
+	AVPacket&							get();
+	const AVPacket&						get() const;
 	
 };
 

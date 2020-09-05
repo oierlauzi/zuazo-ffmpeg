@@ -1,11 +1,9 @@
 #pragma once
 
-#include "Codec.h"
-#include "Frame.h"
-
 #include <zuazo/FFmpeg/Packet.h>
-#include <zuazo/FFmpeg/CodecID.h>
-#include <zuazo/FFmpeg/MediaType.h>
+#include <zuazo/FFmpeg/Frame.h>
+#include <zuazo/FFmpeg/Enumerations.h>
+#include <zuazo/FFmpeg/CodecParameters.h>
 
 #include <zuazo/Utils/BufferView.h>
 
@@ -22,7 +20,8 @@ public:
 	using Handle = AVCodecContext*;
 	using ConstHandle = const AVCodecContext*;
 
-	CodecContext(Codec codec);
+	CodecContext();
+	CodecContext(const AVCodec *codec);
 	CodecContext(const CodecContext& other) = delete;
 	CodecContext(CodecContext&& other);
 	~CodecContext();
@@ -35,11 +34,11 @@ public:
 
 	void								swap(CodecContext& other);
 
-	void								open(const Codec& codec);
+	int									open(const AVCodec* codec = nullptr);
 
-	void								setParameters(const AVCodecParameters& parameters);
-	void								getParameters(AVCodecParameters& parameters) const;
-	AVCodecParameters					getParameters() const;
+	int									setParameters(const CodecParameters& parameters);
+	int									getParameters(CodecParameters& parameters) const;
+	CodecParameters						getParameters() const;
 
 	int									sendPacket(const Packet& packet);
 	int									readPacket(Packet& packet);
@@ -50,6 +49,8 @@ public:
 private:
 	Handle								m_handle;
 	
+	AVCodecContext&						get();
+	const AVCodecContext&				get() const;
 };
 
 }
