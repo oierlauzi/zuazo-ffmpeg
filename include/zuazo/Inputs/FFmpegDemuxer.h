@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../FFmpeg/Enumerations.h"
+#include "../FFmpeg/StreamParameters.h"
 
 #include <zuazo/ZuazoBase.h>
 #include <zuazo/Utils/Pimpl.h>
@@ -14,6 +15,8 @@ class FFmpegDemuxer
 	: public ZuazoBase
 {
 public:
+	using Streams = Utils::BufferView<const FFmpeg::StreamParameters>;
+
 	FFmpegDemuxer(Instance& instance, std::string name, std::string url = "");
 	FFmpegDemuxer(const FFmpegDemuxer& other) = delete;
 	FFmpegDemuxer(FFmpegDemuxer&& other);
@@ -24,7 +27,7 @@ public:
 
 	using ZuazoBase::update;
 
-	int						getStreamCount() const;
+	Streams					getStreams() const;
 	int						findBestStream(FFmpeg::MediaType type) const;
 	int						getLastStreamIndex() const;
 

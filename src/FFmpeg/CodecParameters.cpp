@@ -1,10 +1,10 @@
 #include <zuazo/FFmpeg/CodecParameters.h>
 
-#include <zuazo/FFmpeg/FFmpegConversions.h>
-
 extern "C" {
 	#include <libavcodec/codec_par.h>
 }
+
+#include <cassert>
 
 namespace Zuazo::FFmpeg {
 

@@ -2,7 +2,6 @@
 
 #include <zuazo/ZuazoBase.h>
 #include <zuazo/Utils/Pimpl.h>
-#include <zuazo/Chrono.h>
 #include <zuazo/FFmpeg/CodecParameters.h>
 
 namespace Zuazo::Processors {
@@ -21,6 +20,8 @@ public:
 
 	using ZuazoBase::update;
 
+	void					setCodecParameters(FFmpeg::CodecParameters codecPar);
+	const FFmpeg::CodecParameters& getCodecParameters() const;
 
 private:
 	struct Impl;

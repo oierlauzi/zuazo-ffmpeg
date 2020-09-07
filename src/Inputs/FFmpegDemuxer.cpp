@@ -62,7 +62,7 @@ struct FFmpegDemuxer::Impl {
 
 	private:
 		static std::vector<Output> createPads(const FFmpeg::InputFormatContext& fmt) {
-			const size_t streamCount = fmt.getStreamCount();
+			const size_t streamCount = fmt.getStreams().size();
 			std::vector<Output> result;
 			result.reserve(streamCount);
 
@@ -114,10 +114,10 @@ struct FFmpegDemuxer::Impl {
 
 
 
-	int getStreamCount() const {
+	Streams getStreams() const {
 		return opened
-		? opened->formatContext.getStreamCount()
-		: 0;
+		? opened->formatContext.getStreams()
+		: Streams();
 	}
 
 	int findBestStream(FFmpeg::MediaType type) const {
@@ -188,8 +188,8 @@ FFmpegDemuxer& FFmpegDemuxer::operator=(FFmpegDemuxer&& other) = default;
 
 
 
-int FFmpegDemuxer::getStreamCount() const {
-	return m_impl->getStreamCount();
+FFmpegDemuxer::Streams FFmpegDemuxer::getStreams() const {
+	return m_impl->getStreams();
 }
 
 int FFmpegDemuxer::findBestStream(FFmpeg::MediaType type) const {

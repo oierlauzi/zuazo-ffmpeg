@@ -1,15 +1,14 @@
 #pragma once
 
 #include <zuazo/FFmpeg/Packet.h>
+#include <zuazo/FFmpeg/StreamParameters.h>
 #include <zuazo/FFmpeg/Enumerations.h>
 
 #include <zuazo/Utils/BufferView.h>
 
 #include <cstddef>
 
-extern "C" {
-	#include <libavformat/avformat.h>
-}
+struct AVFormatContext;
 
 namespace Zuazo::FFmpeg {
 
@@ -17,6 +16,8 @@ class InputFormatContext {
 public:
 	using Handle = AVFormatContext*;
 	using ConstHandle = const AVFormatContext*;
+
+	using Streams = Utils::BufferView<const StreamParameters>;
 
 	InputFormatContext();
 	InputFormatContext(const char* url);
@@ -32,7 +33,7 @@ public:
 
 	void								swap(InputFormatContext& other);
 
-	int									getStreamCount() const;
+	Streams 							getStreams() const;
 	int									findBestStream(MediaType type) const;
 
 	int									play();

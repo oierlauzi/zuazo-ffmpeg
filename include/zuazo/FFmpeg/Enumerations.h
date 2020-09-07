@@ -7,7 +7,12 @@
 namespace Zuazo::FFmpeg {
 
 enum class MediaType {
-	NONE = -1
+	NONE = -1,
+	VIDEO = 0,
+	AUDIO = 1,
+	DATA = 2,
+	SUBTITLE = 3,
+	ATTACHMENT = 4,
 };
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(MediaType)
@@ -98,6 +103,15 @@ enum class PictureType {
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(PictureType)
 ZUAZO_ENUM_COMP_OPERATORS(PictureType)	
 
+
+
+enum class Discard {
+	NONE = -16,
+};
+
+ZUAZO_ENUM_ARITHMETIC_OPERATORS(Discard)
+ZUAZO_ENUM_COMP_OPERATORS(Discard)	
+
 }
 
 namespace Zuazo {
@@ -131,5 +145,8 @@ std::ostream& operator<<(std::ostream& os, FFmpeg::ChromaLocation loc);
 
 char toString(FFmpeg::PictureType type);
 std::ostream& operator<<(std::ostream& os, FFmpeg::PictureType type);
+
+//std::string_view toString(FFmpeg::Discard disc);
+//std::ostream& operator<<(std::ostream& os, FFmpeg::Discard disc);
 
 }

@@ -11,6 +11,11 @@ extern "C" {
 namespace Zuazo::FFmpeg {
 
 static_assert(static_cast<AVMediaType>(MediaType::NONE) == AVMEDIA_TYPE_UNKNOWN, "MediaType null value must match");
+static_assert(static_cast<AVMediaType>(MediaType::VIDEO) == AVMEDIA_TYPE_VIDEO, "MediaType VIDEO value must match");
+static_assert(static_cast<AVMediaType>(MediaType::AUDIO) == AVMEDIA_TYPE_AUDIO, "MediaType AUDIO value must match");
+static_assert(static_cast<AVMediaType>(MediaType::DATA) == AVMEDIA_TYPE_DATA, "MediaType DATA value must match");
+static_assert(static_cast<AVMediaType>(MediaType::SUBTITLE) == AVMEDIA_TYPE_SUBTITLE, "MediaType SUBTITLE value must match");
+static_assert(static_cast<AVMediaType>(MediaType::ATTACHMENT) == AVMEDIA_TYPE_ATTACHMENT, "MediaType ATTACHMENT value must match");
 
 static_assert(static_cast<AVCodecID>(CodecID::NONE) == AV_CODEC_ID_NONE, "CodecID null value must match");
 
@@ -27,8 +32,9 @@ static_assert(static_cast<AVColorRange>(ColorRange::NONE) == AVCOL_RANGE_UNSPECI
 static_assert(static_cast<AVChromaLocation>(ChromaLocation::NONE) == AVCHROMA_LOC_UNSPECIFIED, "ColorRange null value must match");
 
 static_assert(static_cast<AVFieldOrder>(FieldOrder::NONE) == AV_FIELD_UNKNOWN, "FieldOrder null value must match");
-
 static_assert(static_cast<AVFieldOrder>(FieldOrder::PROGRESSIVE) == AV_FIELD_PROGRESSIVE, "FieldOrder progressive value must match");
+
+static_assert(static_cast<AVDiscard>(Discard::NONE) == AVDISCARD_NONE, "Discard null value must match");
 
 
 

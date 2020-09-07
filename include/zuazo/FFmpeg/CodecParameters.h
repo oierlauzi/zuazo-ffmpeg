@@ -5,7 +5,6 @@
 #include <zuazo/Resolution.h>
 
 #include <cstddef>
-#include <tuple>
 
 struct AVCodecParameters;
 

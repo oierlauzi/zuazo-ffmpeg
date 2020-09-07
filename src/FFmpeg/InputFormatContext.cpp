@@ -1,5 +1,9 @@
 #include "InputFormatContext.h"
 
+extern "C" {
+	#include <libavformat/avformat.h>
+}
+
 namespace Zuazo::FFmpeg {
 
 InputFormatContext::InputFormatContext(const char* url) 
@@ -39,8 +43,9 @@ void InputFormatContext::swap(InputFormatContext& other) {
 
 
 
-int InputFormatContext::getStreamCount() const {
-	return get().nb_streams;
+InputFormatContext::Streams InputFormatContext::getStreams() const {
+	static_assert(sizeof(StreamParameters::Handle) == sizeof(StreamParameters), "In order to reinterpret cast, size must match");
+	return Streams(reinterpret_cast<const StreamParameters*>(get().streams), get().nb_streams);
 }
 
 int InputFormatContext::findBestStream(MediaType type) const {
