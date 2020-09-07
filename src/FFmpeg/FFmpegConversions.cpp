@@ -71,6 +71,7 @@ static AVColorSpace toFFmpegLUT(Zuazo::ColorModel model) {
 	case Zuazo::ColorModel::BT601:		return AVCOL_SPC_BT470BG;
 	case Zuazo::ColorModel::BT709:		return AVCOL_SPC_BT709;
 	case Zuazo::ColorModel::BT2020:		return AVCOL_SPC_BT2020_CL;
+	case Zuazo::ColorModel::SMPTE240M:	return AVCOL_SPC_SMPTE240M;
 
 	default: 							return AVCOL_SPC_UNSPECIFIED;
 	}
@@ -92,8 +93,8 @@ static Zuazo::ColorModel fromFFmpegLUT(AVColorSpace model) {
 	case AVCOL_SPC_BT709:				return Zuazo::ColorModel::BT709;		//also ITU-R BT1361 / IEC 61966-2-4 xvYCC709 / SMPTE RP177 Annex B
 	//case AVCOL_SPC_FCC:				return {}; /*NOT SUPPORTED*/			//FCC Title 47 Code of Federal Regulations 73.682 (a)(20)
 	case AVCOL_SPC_BT470BG:				return Zuazo::ColorModel::BT601;		//also ITU-R BT601-6 625 / ITU-R BT1358 625 / ITU-R BT1700 625 PAL & SECAM / IEC 61966-2-4 xvYCC601
-	case AVCOL_SPC_SMPTE170M:			return Zuazo::ColorModel::BT601;		//also ITU-R BT601-6 525 / ITU-R BT1358 525 / ITU-R BT1700 NTSC FIXME: Could not find any difference with the above one (525 vs 625)
-	case AVCOL_SPC_SMPTE240M:			return Zuazo::ColorModel::BT601;		//functionally identical to above
+	case AVCOL_SPC_SMPTE170M:			return Zuazo::ColorModel::SMPTE240M;	//also ITU-R BT601-6 525 / ITU-R BT1358 525 / ITU-R BT1700 NTSC
+	case AVCOL_SPC_SMPTE240M:			return Zuazo::ColorModel::SMPTE240M;	//functionally identical to above
 	//case AVCOL_SPC_YCGCO:				return {}; /*NOT SUPPORTED*/			//Used by Dirac / VC-2 and H.264 FRext, see ITU-T SG16					
 	//case AVCOL_SPC_BT2020_NCL:		return {}; /*NOT SUPPORTED*/			//ITU-R BT2020 non-constant luminance system
 	case AVCOL_SPC_BT2020_CL:			return Zuazo::ColorModel::BT2020;		//ITU-R BT2020 constant luminance system
