@@ -49,6 +49,10 @@ struct FFmpegClip::Impl {
 			routePacketStream(demuxer, audioDecoder, audioStreamIndex);
 			routeVideoStream(videoDecoder, videoUploader);
 
+			//Enable multithreading
+			enableMultithreading(videoDecoder);
+			enableMultithreading(audioDecoder);
+
 			//Open them
 			open(videoDecoder, videoStreamIndex);
 			open(audioDecoder, audioStreamIndex);
@@ -146,6 +150,11 @@ struct FFmpegClip::Impl {
 				assert(decoder.isOpen());
 				decoder.flush();
 			}
+		}
+
+		static void enableMultithreading(Processors::FFmpegDecoder& decoder) {
+			decoder.setThreadCount(0); //Use all available threads
+			decoder.setThreadType(FFmpeg::ThreadType::FRAME); //Don't care the delay
 		}
 	};
 

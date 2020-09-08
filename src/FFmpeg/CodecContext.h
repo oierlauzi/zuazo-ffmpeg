@@ -40,6 +40,12 @@ public:
 	int									getParameters(CodecParameters& parameters) const;
 	CodecParameters						getParameters() const;
 
+	void								setThreadCount(int cnt);
+	int									getThreadCount() const;
+
+	void								setThreadType(ThreadType type);
+	ThreadType							getThreadType() const;
+
 	int									sendPacket(const Packet& packet);
 	int									readPacket(Packet& packet);
 	int									sendFrame(const Frame& frame);

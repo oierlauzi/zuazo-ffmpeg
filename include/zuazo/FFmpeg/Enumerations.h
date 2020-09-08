@@ -112,6 +112,17 @@ enum class Discard {
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(Discard)
 ZUAZO_ENUM_COMP_OPERATORS(Discard)	
 
+
+
+enum class ThreadType {
+	NONE = 0,
+	FRAME = 1,
+	SLICE = 2
+};
+
+ZUAZO_ENUM_ARITHMETIC_OPERATORS(ThreadType)
+ZUAZO_ENUM_COMP_OPERATORS(ThreadType)	
+
 }
 
 namespace Zuazo {
@@ -148,5 +159,8 @@ std::ostream& operator<<(std::ostream& os, FFmpeg::PictureType type);
 
 //std::string_view toString(FFmpeg::Discard disc);
 //std::ostream& operator<<(std::ostream& os, FFmpeg::Discard disc);
+
+//std::string_view toString(FFmpeg::ThreadType disc);
+//std::ostream& operator<<(std::ostream& os, FFmpeg::ThreadType disc);
 
 }

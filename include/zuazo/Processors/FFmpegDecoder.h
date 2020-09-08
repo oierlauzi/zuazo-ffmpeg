@@ -2,6 +2,7 @@
 
 #include <zuazo/ZuazoBase.h>
 #include <zuazo/Utils/Pimpl.h>
+#include <zuazo/FFmpeg/Enumerations.h>
 #include <zuazo/FFmpeg/CodecParameters.h>
 
 namespace Zuazo::Processors {
@@ -22,6 +23,12 @@ public:
 
 	void							setCodecParameters(FFmpeg::CodecParameters codecPar);
 	const FFmpeg::CodecParameters& 	getCodecParameters() const;
+
+	void							setThreadCount(int cnt);
+	int								getThreadCount() const;				
+
+	void							setThreadType(FFmpeg::ThreadType type);
+	FFmpeg::ThreadType				getThreadType() const;
 
 	int64_t							getLastPTS() const;
 	void							flush();

@@ -36,6 +36,9 @@ static_assert(static_cast<AVFieldOrder>(FieldOrder::PROGRESSIVE) == AV_FIELD_PRO
 
 static_assert(static_cast<AVDiscard>(Discard::NONE) == AVDISCARD_NONE, "Discard null value must match");
 
+static_assert(static_cast<int>(ThreadType::NONE) == 0, "ThreadType null value must match");
+static_assert(static_cast<int>(ThreadType::FRAME) == FF_THREAD_FRAME, "ThreadType FRAME value must match");
+static_assert(static_cast<int>(ThreadType::SLICE) == FF_THREAD_SLICE, "ThreadType SLICE value must match");
 
 
 MediaType getMediaType(FFmpeg::CodecID id) {

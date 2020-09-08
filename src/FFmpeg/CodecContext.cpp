@@ -61,6 +61,25 @@ CodecParameters CodecContext::getParameters() const {
 
 
 
+void CodecContext::setThreadCount(int cnt) {
+	get().thread_count = cnt;
+}
+
+int CodecContext::getThreadCount() const {
+	return get().thread_count;
+}
+
+
+void CodecContext::setThreadType(ThreadType type) {
+	get().thread_type = static_cast<int>(type);
+}
+
+ThreadType CodecContext::getThreadType() const {
+	return static_cast<ThreadType>(get().thread_type);
+}
+
+
+
 int CodecContext::sendPacket(const Packet& packet) {
 	return avcodec_send_packet(&get(), packet);
 }

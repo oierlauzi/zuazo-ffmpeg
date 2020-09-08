@@ -33,7 +33,9 @@ struct FFmpegDecoder::Impl {
 
 		int64_t					lastPTS;
 
-		Open(const FFmpeg::CodecParameters& codecPar) 
+		Open(	const FFmpeg::CodecParameters& codecPar, 
+				int threadCount, 
+				FFmpeg::ThreadType threadType ) 
 			: codec(findDecoder(codecPar))
 			, codecContext(codec)
 			, packetQueue()
@@ -43,6 +45,9 @@ struct FFmpegDecoder::Impl {
 			if(codecContext.setParameters(codecPar) < 0) {
 				return; //ERROR
 			}
+
+			codecContext.setThreadCount(threadCount);
+			codecContext.setThreadType(threadType);
 
 			if(codecContext.open(codec) != 0) {
 				return; //ERROR
@@ -100,6 +105,8 @@ struct FFmpegDecoder::Impl {
 	using Output = Signal::Output<FFmpeg::Video>;
 
 	FFmpeg::CodecParameters	codecParameters;
+	int						threadCount;
+	FFmpeg::ThreadType		threadType;
 
 	Input 					packetIn;
 	Output					videoOut;
@@ -107,7 +114,9 @@ struct FFmpegDecoder::Impl {
 	std::unique_ptr<Open> 	opened;
 
 	Impl(FFmpeg::CodecParameters codecPar) 
-		: codecParameters(std::move(codecPar))			
+		: codecParameters(std::move(codecPar))
+		, threadCount(1)
+		, threadType(FFmpeg::ThreadType::NONE)
 		, packetIn(std::string(Signal::makeInputName<FFmpeg::PacketStream>()))
 		, videoOut(std::string(Signal::makeOutputName<FFmpeg::Video>()))
 	{
@@ -117,7 +126,7 @@ struct FFmpegDecoder::Impl {
 
 
 	void open(ZuazoBase&) {
-		opened = Utils::makeUnique<Open>(codecParameters);
+		opened = Utils::makeUnique<Open>(codecParameters, threadCount, threadType);
 	}
 
 	void close(ZuazoBase&) {
@@ -141,6 +150,28 @@ struct FFmpegDecoder::Impl {
 	const FFmpeg::CodecParameters& getCodecParameters() const {
 		return codecParameters;
 	}
+
+
+
+	void setThreadCount(int cnt) {
+		threadCount = cnt;
+		if(opened) opened->codecContext.setThreadCount(threadCount);
+	}
+
+	int getThreadCount() const {
+		return threadCount;
+	}	
+
+
+	void setThreadType(FFmpeg::ThreadType type) {
+		threadType = type;
+		if(opened) opened->codecContext.setThreadType(threadType);
+	}
+
+	FFmpeg::ThreadType getThreadType() const {
+		return threadType;
+	}
+
 
 
 	int64_t getLastPTS() const {
@@ -184,6 +215,25 @@ void FFmpegDecoder::setCodecParameters(FFmpeg::CodecParameters codecPar) {
 
 const FFmpeg::CodecParameters& FFmpegDecoder::getCodecParameters() const {
 	return m_impl->getCodecParameters();
+}
+
+
+
+void FFmpegDecoder::setThreadCount(int cnt) {
+	m_impl->setThreadCount(cnt);
+}
+
+int FFmpegDecoder::getThreadCount() const {
+	return m_impl->getThreadCount();
+}	
+
+
+void FFmpegDecoder::setThreadType(FFmpeg::ThreadType type) {
+	m_impl->setThreadType(type);
+}
+
+FFmpeg::ThreadType FFmpegDecoder::getThreadType() const {
+	return m_impl->getThreadType();
 }
 
 
