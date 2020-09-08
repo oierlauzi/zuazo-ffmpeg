@@ -8,10 +8,7 @@
 
 #include <zuazo/Instance.h>
 #include <zuazo/Outputs/Window.h>
-#include <zuazo/Inputs/FFmpegDemuxer.h>
-#include <zuazo/Processors/FFmpegDecoder.h>
-#include <zuazo/Processors/FFmpegUploader.h>
-#include <zuazo/FFmpeg/Signals.h>
+#include <zuazo/Inputs/FFmpegClip.h>
 
 #include <mutex>
 #include <iostream>
@@ -67,37 +64,15 @@ int main(int argc, const char** argv) {
 
 
 
-	Zuazo::Inputs::FFmpegDemuxer demuxer(instance, "Demuxer", std::string(argv[1]));
-	demuxer.open();
-	const auto videoIndex = demuxer.findBestStream(Zuazo::FFmpeg::MediaType::VIDEO);
-	const auto& codecParameters = demuxer.getStreams()[videoIndex].getCodecParameters();
-
-	Zuazo::Processors::FFmpegDecoder decoder(instance, "Decoder", std::move(codecParameters));
-	decoder.open();
-
-	Zuazo::Processors::FFmpegUploader uploader(instance, "Uploader");
-	uploader.open();
-
-	Zuazo::Signal::getInput<Zuazo::FFmpeg::PacketStream>(decoder) << Zuazo::Signal::getOutput<Zuazo::FFmpeg::PacketStream>(demuxer, Zuazo::Signal::makeOutputName<Zuazo::FFmpeg::PacketStream>(videoIndex));
-	Zuazo::Signal::getInput<Zuazo::FFmpeg::Video>(uploader) << Zuazo::Signal::getOutput<Zuazo::FFmpeg::Video>(decoder);
-	Zuazo::Signal::getInput<Zuazo::Video>(window) << Zuazo::Signal::getOutput<Zuazo::Video>(uploader);
-
-	const auto decodeCallback = std::make_shared<Zuazo::Instance::ScheduledCallback>(
-		[&demuxer, &decoder, &videoIndex] {
-			do {
-				demuxer.update();
-			} while(demuxer.getLastStreamIndex() != videoIndex);
-
-			decoder.update();
-		}
-	);
-
-	instance.addRegularCallback(decodeCallback, Zuazo::Instance::INPUT_PRIORITY);
+	Zuazo::Inputs::FFmpegClip videoClip(instance, "Video Clip", Zuazo::VideoMode::ANY, std::string(argv[1]));
+	videoClip.open();
+	videoClip.play();
+	videoClip.setPlaySpeed(0.5);
+	Zuazo::Signal::getInput<Zuazo::Video>(window) << Zuazo::Signal::getOutput<Zuazo::Video>(videoClip);
 
 	//Done!
 	lock.unlock();
 	getchar();
 	lock.lock();
 
-	instance.removeRegularCallback(decodeCallback);
 }

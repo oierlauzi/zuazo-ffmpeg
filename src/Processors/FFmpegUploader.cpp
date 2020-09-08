@@ -53,10 +53,13 @@ struct FFmpegUploader::Impl {
 			const auto frameCharacteristics = createFrameCharacteristics(*frame);
 			if(lastFrameCharacteristics != frameCharacteristics) {
 				//Frame characteristics have changed. Recreate the uploader
-				lastFrameCharacteristics = frameCharacteristics;
-				
-				const auto frameDesc = convertFrameCharacteristics(lastFrameCharacteristics);
+				const auto frameDesc = convertFrameCharacteristics(frameCharacteristics);
+				if(!isValid(frameDesc)) {
+					return Zuazo::Video(); //Invalid conversion
+				}
+
 				uploader = Graphics::Uploader(uploader.getVulkan(), frameDesc);
+				lastFrameCharacteristics = frameCharacteristics;
 			}
 
 			auto result = uploader.acquireFrame();
@@ -172,6 +175,17 @@ struct FFmpegUploader::Impl {
 			const uint32_t s = (plane == 1 || plane == 2) ? desc->log2_chroma_h : 0;
 			return (height + (1 << s) - 1) >> s;
 		}
+
+		static bool isValid(const Graphics::Frame::Descriptor& desc) {
+			return 	desc.resolution &&
+					desc.pixelAspectRatio &&
+					desc.colorPrimaries != ColorPrimaries::NONE &&
+					desc.colorModel != ColorModel::NONE &&
+					desc.colorTransferFunction != ColorTransferFunction::NONE &&
+					desc.colorSubsampling != ColorSubsampling::NONE &&
+					desc.colorRange != ColorRange::NONE &&
+					desc.colorFormat != ColorFormat::NONE ;
+		}
 	};
 
 	using Input = Signal::Input<FFmpeg::Video>;
@@ -203,6 +217,8 @@ struct FFmpegUploader::Impl {
 	void close(ZuazoBase&) {
 		assert(opened);
 		opened.reset();
+		videoIn.reset();
+		videoOut.reset();
 	}
 
 	void update() {

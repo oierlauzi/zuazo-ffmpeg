@@ -31,11 +31,14 @@ struct FFmpegDecoder::Impl {
 		PacketQueue				packetQueue;
 		FramePool				framePool;
 
+		int64_t					lastPTS;
+
 		Open(const FFmpeg::CodecParameters& codecPar) 
 			: codec(findDecoder(codecPar))
 			, codecContext(codec)
 			, packetQueue()
 			, framePool()
+			, lastPTS(AV_NOPTS_VALUE)
 		{
 			if(codecContext.setParameters(codecPar) < 0) {
 				return; //ERROR
@@ -70,7 +73,19 @@ struct FFmpegDecoder::Impl {
 			}
 
 			//Hopefuly, a new frame has been decoded at this point
+			lastPTS = frame->getPTS();
 			return frame->getResolution() ? frame : FFmpeg::Video();
+		}
+
+		int64_t getLastPTS() const {
+			return lastPTS;
+		}
+
+		void flush() {
+			const auto frame = framePool.acquire();
+			assert(frame);
+			while(codecContext.readFrame(*frame) == 0);
+			lastPTS = AV_NOPTS_VALUE;
 		}
 
 	private:
@@ -107,6 +122,8 @@ struct FFmpegDecoder::Impl {
 
 	void close(ZuazoBase&) {
 		opened.reset();
+		packetIn.reset();
+		videoOut.reset();
 	}
 
 	void update() {
@@ -118,11 +135,20 @@ struct FFmpegDecoder::Impl {
 
 	void setCodecParameters(FFmpeg::CodecParameters codecPar) {
 		codecParameters = std::move(codecPar);
-		if(opened) opened->codecContext.setParameters(codecPar);
+		opened->codecContext.setParameters(codecPar);
 	}
 
 	const FFmpeg::CodecParameters& getCodecParameters() const {
 		return codecParameters;
+	}
+
+
+	int64_t getLastPTS() const {
+		return opened ? opened->getLastPTS() : AV_NOPTS_VALUE;
+	}
+
+	void flush() {
+		if(opened) opened->flush();
 	}
 
 };
@@ -158,6 +184,16 @@ void FFmpegDecoder::setCodecParameters(FFmpeg::CodecParameters codecPar) {
 
 const FFmpeg::CodecParameters& FFmpegDecoder::getCodecParameters() const {
 	return m_impl->getCodecParameters();
+}
+
+
+
+int64_t FFmpegDecoder::getLastPTS() const {
+	return m_impl->getLastPTS();
+}
+
+void FFmpegDecoder::flush() {
+	m_impl->flush();
 }
 
 }

@@ -15,13 +15,16 @@ public:
 	FFmpegDecoder(FFmpegDecoder&& other);
 	~FFmpegDecoder();
 
-	FFmpegDecoder&			operator=(const FFmpegDecoder& other) = delete;
-	FFmpegDecoder&			operator=(FFmpegDecoder&& other);
+	FFmpegDecoder&					operator=(const FFmpegDecoder& other) = delete;
+	FFmpegDecoder&					operator=(FFmpegDecoder&& other);
 
 	using ZuazoBase::update;
 
-	void					setCodecParameters(FFmpeg::CodecParameters codecPar);
-	const FFmpeg::CodecParameters& getCodecParameters() const;
+	void							setCodecParameters(FFmpeg::CodecParameters codecPar);
+	const FFmpeg::CodecParameters& 	getCodecParameters() const;
+
+	int64_t							getLastPTS() const;
+	void							flush();
 
 private:
 	struct Impl;

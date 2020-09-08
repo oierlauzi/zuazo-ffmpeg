@@ -13,6 +13,11 @@
 #include <cassert>
 #include <vector>
 
+extern "C" {
+	#include <libavutil/avutil.h>
+	#include <libavutil/mathematics.h>
+}
+
 
 namespace Zuazo::Inputs {
 
@@ -142,7 +147,7 @@ struct FFmpegDemuxer::Impl {
 
 	bool seek(TimePoint tp) {
 		return opened 
-		? opened->formatContext.seek(FFmpeg::toFFmpeg(tp.time_since_epoch())) >= 0
+		? opened->formatContext.seek(av_rescale_q(tp.time_since_epoch().count(), AVRational{Duration::period::num, Duration::period::den}, AV_TIME_BASE_Q)) >= 0
 		: false;
 	}
 	
@@ -154,7 +159,7 @@ struct FFmpegDemuxer::Impl {
 	
 	bool seekAny(TimePoint tp) {
 		return opened 
-		? opened->formatContext.seekAny(FFmpeg::toFFmpeg(tp.time_since_epoch())) >= 0
+		? opened->formatContext.seekAny(av_rescale_q(tp.time_since_epoch().count(), AVRational{Duration::period::num, Duration::period::den}, AV_TIME_BASE_Q)) >= 0
 		: false;
 	}
 	

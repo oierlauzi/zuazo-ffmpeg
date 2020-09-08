@@ -10,12 +10,6 @@ extern "C" {
 
 namespace Zuazo::FFmpeg {
 
-int64_t toFFmpeg(Duration dur) {
-	using Dur = std::chrono::duration<int64_t, std::ratio<1, AV_TIME_BASE>>;
-	return std::chrono::duration_cast<Dur>(dur).count();
-}
-
-
 
 static AVColorPrimaries toFFmpegLUT(Zuazo::ColorPrimaries prim) {
 	switch(prim) {

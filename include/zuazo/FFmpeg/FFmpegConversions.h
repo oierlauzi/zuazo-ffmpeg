@@ -14,8 +14,6 @@
 
 namespace Zuazo::FFmpeg {
 
-int64_t toFFmpeg(Duration dur);
-
 ColorPrimaries toFFmpeg(Zuazo::ColorPrimaries prim);
 Zuazo::ColorPrimaries fromFFmpeg(ColorPrimaries prim);
 
