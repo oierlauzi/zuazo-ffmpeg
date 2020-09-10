@@ -40,10 +40,8 @@ public:
 
 	int									play();
 	int									pause();
-	int									seek(int stream, int64_t timestamp);
-	int									seek(int64_t timestamp);
-	int									seekAny(int stream, int64_t timestamp);
-	int									seekAny(int64_t timestamp);
+	int									seek(int stream, int64_t timestamp, SeekFlags flags = SeekFlags::NONE);
+	int									seek(int64_t timestamp, SeekFlags flags = SeekFlags::NONE);
 	int									readPacket(Packet& pkt);
 	int									flush();
 

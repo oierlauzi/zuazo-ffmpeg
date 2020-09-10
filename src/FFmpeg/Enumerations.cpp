@@ -4,6 +4,7 @@ extern "C" {
 	#include <libavutil/avutil.h>
 	#include <libavutil/pixfmt.h>
 	#include <libavutil/pixdesc.h>
+	#include <libavformat/avformat.h>
 	#include <libavcodec/codec_id.h>
 	#include <libavcodec/avcodec.h>
 }
@@ -40,6 +41,11 @@ static_assert(static_cast<int>(ThreadType::NONE) == 0, "ThreadType null value mu
 static_assert(static_cast<int>(ThreadType::FRAME) == FF_THREAD_FRAME, "ThreadType FRAME value must match");
 static_assert(static_cast<int>(ThreadType::SLICE) == FF_THREAD_SLICE, "ThreadType SLICE value must match");
 
+static_assert(static_cast<int>(SeekFlags::NONE) == 0, "Seek null value must match");
+static_assert(static_cast<int>(SeekFlags::BACKWARD) == AVSEEK_FLAG_BACKWARD, "Seek BACKWARD value must match");
+static_assert(static_cast<int>(SeekFlags::BYTE) == AVSEEK_FLAG_BYTE, "Seek BYTE value must match");
+static_assert(static_cast<int>(SeekFlags::ANY) == AVSEEK_FLAG_ANY, "Seek ANY value must match");
+static_assert(static_cast<int>(SeekFlags::FRAME) == AVSEEK_FLAG_FRAME, "Seek FRAME value must match");
 
 MediaType getMediaType(FFmpeg::CodecID id) {
 	return static_cast<MediaType>(avcodec_get_type(static_cast<AVCodecID>(id)));

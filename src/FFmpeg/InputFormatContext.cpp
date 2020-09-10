@@ -73,31 +73,19 @@ int InputFormatContext::pause() {
 	return av_read_pause(&get());
 }
 
-int InputFormatContext::seek(int stream, int64_t timestamp) {
+int InputFormatContext::seek(int stream, int64_t timestamp, SeekFlags flags) {
 	return av_seek_frame(
 		&get(),					//Handle
 		stream,					//Stream index
 		timestamp,				//Time stamp
-		0						//Flags
+		static_cast<int>(flags)	//Flags
 	);
 }
 
-int InputFormatContext::seek(int64_t timestamp) {
-	return seek(-1, timestamp);
+int InputFormatContext::seek(int64_t timestamp, SeekFlags flags) {
+	return seek(-1, timestamp, flags);
 }
 
-int InputFormatContext::seekAny(int stream, int64_t timestamp) {
-	return av_seek_frame(
-		&get(),					//Handle
-		stream,					//Stream index
-		timestamp,				//Time stamp
-		AVSEEK_FLAG_ANY			//Flags
-	);
-}
-
-int InputFormatContext::seekAny(int64_t timestamp) {
-	return seekAny(-1, timestamp);
-}
 
 int InputFormatContext::readPacket(Packet& pkt) {
 	return av_read_frame(

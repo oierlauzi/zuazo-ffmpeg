@@ -66,7 +66,7 @@ int main(int argc, const char** argv) {
 
 	Zuazo::Inputs::FFmpegClip videoClip(instance, "Video Clip", Zuazo::VideoMode::ANY, std::string(argv[1]));
 	videoClip.open();
-	videoClip.setRepeat(Zuazo::ClipBase::Repeat::PING_PONG);
+	videoClip.setRepeat(Zuazo::ClipBase::Repeat::REPEAT);
 	videoClip.play();
 	//videoClip.setPlaySpeed(0.5);
 	Zuazo::Signal::getInput<Zuazo::Video>(window) << Zuazo::Signal::getOutput<Zuazo::Video>(videoClip);

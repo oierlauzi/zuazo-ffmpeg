@@ -153,27 +153,15 @@ struct FFmpegDemuxer::Impl {
 
 
 
-	bool seek(int stream, int64_t timestamp) {
+	bool seek(int stream, int64_t timestamp, FFmpeg::SeekFlags flags) {
 		return opened 
-		? opened->formatContext.seek(stream, timestamp) >= 0
+		? opened->formatContext.seek(stream, timestamp, flags) >= 0
 		: false;
 	}
 
-	bool seek(TimePoint tp) {
+	bool seek(TimePoint tp, FFmpeg::SeekFlags flags) {
 		return opened 
-		? opened->formatContext.seek(av_rescale_q(tp.time_since_epoch().count(), AVRational{Duration::period::num, Duration::period::den}, AV_TIME_BASE_Q)) >= 0
-		: false;
-	}
-	
-	bool seekAny(int stream, int64_t timestamp) {
-		return opened 
-		? opened->formatContext.seekAny(stream, timestamp)  >= 0
-		: false;
-	}
-	
-	bool seekAny(TimePoint tp) {
-		return opened 
-		? opened->formatContext.seekAny(av_rescale_q(tp.time_since_epoch().count(), AVRational{Duration::period::num, Duration::period::den}, AV_TIME_BASE_Q)) >= 0
+		? opened->formatContext.seek(av_rescale_q(tp.time_since_epoch().count(), AVRational{Duration::period::num, Duration::period::den}, AV_TIME_BASE_Q), flags) >= 0
 		: false;
 	}
 	
@@ -224,20 +212,12 @@ Duration FFmpegDemuxer::getDuration() const {
 }
 
 
-bool FFmpegDemuxer::seek(int stream, int64_t timestamp) {
-	return m_impl->seek(stream, timestamp);
+bool FFmpegDemuxer::seek(int stream, int64_t timestamp, FFmpeg::SeekFlags flags) {
+	return m_impl->seek(stream, timestamp, flags);
 }
 
-bool FFmpegDemuxer::seek(TimePoint tp) {
-	return m_impl->seek(tp);
-}
-
-bool FFmpegDemuxer::seekAny(int stream, int64_t timestamp) {
-	return m_impl->seekAny(stream, timestamp);
-}
-
-bool FFmpegDemuxer::seekAny(TimePoint tp) {
-	return m_impl->seek(tp);
+bool FFmpegDemuxer::seek(TimePoint tp, FFmpeg::SeekFlags flags) {
+	return m_impl->seek(tp, flags);
 }
 
 bool FFmpegDemuxer::flush() {

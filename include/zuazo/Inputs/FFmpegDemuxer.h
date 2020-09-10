@@ -32,10 +32,8 @@ public:
 	int						getLastStreamIndex() const;
 	Duration 				getDuration() const;
 
-	bool					seek(int stream, int64_t timestamp);
-	bool					seek(TimePoint tp);
-	bool					seekAny(int stream, int64_t timestamp);
-	bool					seekAny(TimePoint tp);
+	bool					seek(int stream, int64_t timestamp, FFmpeg::SeekFlags flags = FFmpeg::SeekFlags::NONE);
+	bool					seek(TimePoint tp, FFmpeg::SeekFlags flags = FFmpeg::SeekFlags::NONE);
 	bool					flush();
 private:
 	struct Impl;

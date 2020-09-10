@@ -1,6 +1,7 @@
 #pragma once
 
 #include <zuazo/Macros.h>
+#include <zuazo/Utils/Functions.h>
 
 #include <string_view>
 
@@ -120,8 +121,19 @@ enum class ThreadType {
 	SLICE = 2
 };
 
-ZUAZO_ENUM_ARITHMETIC_OPERATORS(ThreadType)
-ZUAZO_ENUM_COMP_OPERATORS(ThreadType)	
+ZUAZO_ENUM_BIT_OPERATORS(ThreadType)
+
+
+
+enum class SeekFlags {
+	NONE		= 0,
+	BACKWARD 	= Utils::bit(0),
+	BYTE		= Utils::bit(1),
+	ANY			= Utils::bit(2),
+	FRAME		= Utils::bit(3),
+};
+
+ZUAZO_ENUM_BIT_OPERATORS(SeekFlags)
 
 }
 
@@ -162,5 +174,8 @@ std::ostream& operator<<(std::ostream& os, FFmpeg::PictureType type);
 
 //std::string_view toString(FFmpeg::ThreadType disc);
 //std::ostream& operator<<(std::ostream& os, FFmpeg::ThreadType disc);
+
+//std::string_view toString(FFmpeg::SeekFlags seek);
+//std::ostream& operator<<(std::ostream& os, FFmpeg::SeekFlags seek);
 
 }

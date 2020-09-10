@@ -287,7 +287,7 @@ struct FFmpegClip::Impl {
 
 			if(delta < Duration(0)) {
 				//Time has gone back!
-				demuxer.seek(targetTimeStamp);
+				demuxer.seek(targetTimeStamp, FFmpeg::SeekFlags::BACKWARD);
 				demuxer.flush();
 				opened->flush();
 			}
