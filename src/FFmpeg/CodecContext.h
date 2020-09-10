@@ -51,6 +51,7 @@ public:
 	int									sendFrame(const Frame& frame);
 	int									readFrame(Frame& frame);
 
+	void								flush();
 
 private:
 	Handle								m_handle;

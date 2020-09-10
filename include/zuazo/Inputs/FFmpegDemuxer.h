@@ -30,6 +30,7 @@ public:
 	Streams					getStreams() const;
 	int						findBestStream(FFmpeg::MediaType type) const;
 	int						getLastStreamIndex() const;
+	Duration 				getDuration() const;
 
 	bool					seek(int stream, int64_t timestamp);
 	bool					seek(TimePoint tp);

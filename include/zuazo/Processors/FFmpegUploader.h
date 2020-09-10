@@ -9,9 +9,12 @@ namespace Zuazo::Processors {
 
 class FFmpegUploader
 	: public ZuazoBase
+	, public VideoBase
 {
 public:
-	FFmpegUploader(Instance& instance, std::string name);
+	FFmpegUploader(	Instance& instance, 
+					std::string name, 
+					VideoMode videoMode = VideoMode::ANY);
 	FFmpegUploader(const FFmpegUploader& other) = delete;
 	FFmpegUploader(FFmpegUploader&& other);
 	~FFmpegUploader();

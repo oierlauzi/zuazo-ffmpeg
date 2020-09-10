@@ -53,15 +53,23 @@ struct FFmpegDemuxer::Impl {
 			assert(packet);
 
 			//Ensure that the frame is clear in order to avoid sending garbage
-			//packet->unref(); //done by readPacket()
+			packet->unref();
 
-			if(formatContext.readPacket(*packet) != 0) {
-				return; //Error
+			const int readResult = formatContext.readPacket(*packet);
+			switch(readResult) {
+			case 0:	//Success!
+				lastIndex = packet->getStreamIndex(); //Succesfully extracted a frame
+				break;
+			case AVERROR_EOF: //End of file: Signal flusing mode (packet will be empty)
+				lastIndex = (lastIndex + 1) % pads.size(); //Just walk though all the pads
+				break;
+			default: //Unexpected!
+				lastIndex = -1;
+				return;
+
 			}
 
-			lastIndex = packet->getStreamIndex();
 			assert(lastIndex >= 0 && lastIndex < static_cast<int>(pads.size()));
-
 			pads[lastIndex].push(std::move(packet));
 		}
 
@@ -137,6 +145,12 @@ struct FFmpegDemuxer::Impl {
 		: -1;
 	}
 
+	Duration getDuration() const {
+		return opened 
+		? Duration(av_rescale_q(opened->formatContext.getDuration(), AV_TIME_BASE_Q, AVRational{Duration::period::num, Duration::period::den}))
+		: Duration();
+	}
+
 
 
 	bool seek(int stream, int64_t timestamp) {
@@ -205,6 +219,9 @@ int FFmpegDemuxer::getLastStreamIndex() const {
 	return m_impl->getLastStreamIndex();
 }
 
+Duration FFmpegDemuxer::getDuration() const {
+	return m_impl->getDuration();
+}
 
 
 bool FFmpegDemuxer::seek(int stream, int64_t timestamp) {

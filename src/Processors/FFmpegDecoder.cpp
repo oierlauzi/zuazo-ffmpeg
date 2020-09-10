@@ -31,7 +31,7 @@ struct FFmpegDecoder::Impl {
 		PacketQueue				packetQueue;
 		FramePool				framePool;
 
-		int64_t					lastPTS;
+		inline static const auto flushPacket = FFmpeg::Packet();
 
 		Open(	const FFmpeg::CodecParameters& codecPar, 
 				int threadCount, 
@@ -40,7 +40,6 @@ struct FFmpegDecoder::Impl {
 			, codecContext(codec)
 			, packetQueue()
 			, framePool()
-			, lastPTS(AV_NOPTS_VALUE)
 		{
 			if(codecContext.setParameters(codecPar) < 0) {
 				return; //ERROR
@@ -56,41 +55,55 @@ struct FFmpegDecoder::Impl {
 
 		~Open() = default;
 
-		FFmpeg::Video process(const FFmpeg::PacketStream& packet) {
-			assert(packet);
-			packetQueue.push(packet);
+		void update(const FFmpeg::PacketStream& pkt) {
+			assert(pkt);
+			packetQueue.push(pkt);
+		}
 
+		FFmpeg::Video decode(const DemuxCallback& demuxCbk) {
 			auto frame = framePool.acquire();
 			assert(frame);
 
 			//Unref the previous contents so that in case of failure, garbage isn't pushed.
 			//frame->unref(); //done by readFrame()
 
-			//Try to decode a frame
-			while(codecContext.readFrame(*frame) == AVERROR(EAGAIN) && !packetQueue.empty()) {
-				//In order to decode a frame we need another packet. Retrieve it from the queue
-				const auto& packet = packetQueue.front();
-				assert(packet); //It must be a valid pointer
-				if(codecContext.sendPacket(*packet) == 0) {
-					//Succeded sending this packet. Remove it from the queue
-					packetQueue.pop();
+			int readError;
+			while((readError = codecContext.readFrame(*frame)) != 0) {
+				switch(readError) {
+				case AVERROR(EAGAIN):
+					//In order to decode a frame we need another packet. Retrieve it from the queue
+					while(packetQueue.empty()) demuxCbk(); //If there are no elements on the queue, populate it.
+					assert(!packetQueue.empty());
+
+					assert(packetQueue.front());
+					if(codecContext.sendPacket(*packetQueue.front()) == 0) {
+						//Succeded sending this packet. Remove it from the queue
+						packetQueue.pop();
+					}
+
+					break;
+
+				default:
+					//Unknown error
+					return FFmpeg::Video();
 				}
 			}
 
-			//Hopefuly, a new frame has been decoded at this point
-			lastPTS = frame->getPTS();
-			return frame->getResolution() ? frame : FFmpeg::Video();
-		}
-
-		int64_t getLastPTS() const {
-			return lastPTS;
+			return frame;
 		}
 
 		void flush() {
 			const auto frame = framePool.acquire();
 			assert(frame);
-			while(codecContext.readFrame(*frame) == 0);
-			lastPTS = AV_NOPTS_VALUE;
+
+			//Empty the packet queue
+			while(packetQueue.size() > 0) packetQueue.pop();
+
+			//Flush the codec itself
+			//codecContext.sendPacket(flushPacket);
+			//while(codecContext.readFrame(*frame) == 0);
+			
+			codecContext.flush();
 		}
 
 	private:
@@ -108,15 +121,18 @@ struct FFmpegDecoder::Impl {
 	int						threadCount;
 	FFmpeg::ThreadType		threadType;
 
+	DemuxCallback			demuxCallback;
+
 	Input 					packetIn;
 	Output					videoOut;
 
 	std::unique_ptr<Open> 	opened;
 
-	Impl(FFmpeg::CodecParameters codecPar) 
+	Impl(FFmpeg::CodecParameters codecPar, DemuxCallback demuxCbk) 
 		: codecParameters(std::move(codecPar))
 		, threadCount(1)
 		, threadType(FFmpeg::ThreadType::NONE)
+		, demuxCallback(std::move(demuxCbk))
 		, packetIn(std::string(Signal::makeInputName<FFmpeg::PacketStream>()))
 		, videoOut(std::string(Signal::makeOutputName<FFmpeg::Video>()))
 	{
@@ -136,11 +152,22 @@ struct FFmpegDecoder::Impl {
 	}
 
 	void update() {
-		if(opened) {
-			const auto& packet = packetIn.hasChanged() ? packetIn.pull() : Signal::Output<FFmpeg::PacketStream>::NO_SIGNAL;
-			videoOut.push(packet ? opened->process(packet) : FFmpeg::Video());
+		if(opened && packetIn.hasChanged()) {
+			opened->update(packetIn.pull());
 		}
 	}
+
+	void decode() {
+		if(opened) {
+			videoOut.push(opened->decode(demuxCallback));
+		}
+	}
+
+	void flush() {
+		if(opened) opened->flush();
+		videoOut.reset();
+	}
+
 
 	void setCodecParameters(FFmpeg::CodecParameters codecPar) {
 		codecParameters = std::move(codecPar);
@@ -173,13 +200,12 @@ struct FFmpegDecoder::Impl {
 	}
 
 
-
-	int64_t getLastPTS() const {
-		return opened ? opened->getLastPTS() : AV_NOPTS_VALUE;
+	void setDemuxCallback(DemuxCallback cbk) {
+		demuxCallback = std::move(cbk);
 	}
 
-	void flush() {
-		if(opened) opened->flush();
+	const DemuxCallback& getDemuxCallback() const {
+		return demuxCallback;
 	}
 
 };
@@ -190,9 +216,12 @@ struct FFmpegDecoder::Impl {
  * FFmpegDecoder
  */
 
-FFmpegDecoder::FFmpegDecoder(Instance& instance, std::string name, FFmpeg::CodecParameters codecPar)
+FFmpegDecoder::FFmpegDecoder(	Instance& instance, 
+								std::string name, 
+								FFmpeg::CodecParameters codecPar,
+								DemuxCallback demuxCbk )
 	: ZuazoBase(instance, std::move(name))
-	, m_impl({}, std::move(codecPar))
+	, m_impl({}, std::move(codecPar), std::move(demuxCbk))
 {
 	setOpenCallback(std::bind(&Impl::open, std::ref(*m_impl), std::placeholders::_1));
 	setCloseCallback(std::bind(&Impl::close, std::ref(*m_impl), std::placeholders::_1));
@@ -209,6 +238,15 @@ FFmpegDecoder& FFmpegDecoder::operator=(FFmpegDecoder&& other) = default;
 
 
 
+void FFmpegDecoder::decode() {
+	m_impl->decode();
+}
+
+void FFmpegDecoder::flush() {
+	m_impl->flush();
+}
+
+
 void FFmpegDecoder::setCodecParameters(FFmpeg::CodecParameters codecPar) {
 	m_impl->setCodecParameters(std::move(codecPar));
 }
@@ -216,7 +254,6 @@ void FFmpegDecoder::setCodecParameters(FFmpeg::CodecParameters codecPar) {
 const FFmpeg::CodecParameters& FFmpegDecoder::getCodecParameters() const {
 	return m_impl->getCodecParameters();
 }
-
 
 
 void FFmpegDecoder::setThreadCount(int cnt) {
@@ -237,13 +274,12 @@ FFmpeg::ThreadType FFmpegDecoder::getThreadType() const {
 }
 
 
-
-int64_t FFmpegDecoder::getLastPTS() const {
-	return m_impl->getLastPTS();
+void FFmpegDecoder::setDemuxCallback(DemuxCallback cbk) {
+	m_impl->setDemuxCallback(std::move(cbk));
 }
 
-void FFmpegDecoder::flush() {
-	m_impl->flush();
+const FFmpegDecoder::DemuxCallback& FFmpegDecoder::getDemuxCallback() const {
+	return m_impl->getDemuxCallback();
 }
 
 }

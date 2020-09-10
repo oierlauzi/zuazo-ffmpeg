@@ -35,6 +35,8 @@ public:
 
 	Streams 							getStreams() const;
 	int									findBestStream(MediaType type) const;
+	
+	int64_t								getDuration() const;
 
 	int									play();
 	int									pause();

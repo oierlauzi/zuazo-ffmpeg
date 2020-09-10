@@ -19,6 +19,8 @@ extern "C" {
 	#include <libavutil/pixdesc.h>
 }
 
+#include <iostream>
+
 namespace Zuazo::Processors {
 
 /*
@@ -38,74 +40,77 @@ struct FFmpegUploader::Impl {
 		FrameCharacteristics	lastFrameCharacteristics;
 		Graphics::Uploader		uploader;
 
-		Open(const Graphics::Vulkan& vulkan) 
+		Open(const Graphics::Vulkan& vulkan, const VideoMode& videoMode) 
 			: lastFrameCharacteristics(createFrameCharacteristics())
-			, uploader(createUploader(vulkan, lastFrameCharacteristics))
+			, uploader(vulkan, videoMode ? videoMode.getFrameDescriptor() : Graphics::Frame::Descriptor())
 		{
 		}
 
 		~Open() = default;
 
-		Zuazo::Video process(const FFmpeg::Video& frame) {
+		Zuazo::Video process(FFmpegUploader& ffmpegUploader, const FFmpeg::Video& frame) {
 			assert(frame);
 
 			//Evaluate if frame characteristics have changed
 			const auto frameCharacteristics = createFrameCharacteristics(*frame);
 			if(lastFrameCharacteristics != frameCharacteristics) {
-				//Frame characteristics have changed. Recreate the uploader
-				const auto frameDesc = convertFrameCharacteristics(frameCharacteristics);
-				if(!isValid(frameDesc)) {
-					return Zuazo::Video(); //Invalid conversion
+				//Frame characteristics have changed
+				lastFrameCharacteristics = frameCharacteristics;
+				ffmpegUploader.setVideoModeCompatibility(getVideoModeCompatibility(frameCharacteristics));
+			}
+
+			//Only proceed if there it has a valid videoMode
+			if(ffmpegUploader.getVideoMode()) {
+				auto result = uploader.acquireFrame();
+				assert(result);
+				
+				const auto& dstBuffers = result->getPixelData();
+				const auto srcBuffers = frame->getData();
+				const auto srcLinesizes = frame->getLineSizes();
+				const auto planeCount = Math::min(dstBuffers.size(), srcBuffers.size());
+				const auto resolution = frame->getResolution();
+				assert(srcBuffers.size() == srcLinesizes.size());
+
+				//Copy all the data into it
+				for(size_t plane = 0; plane < planeCount; plane++) {
+					//Copy plane by plane
+					const auto byteWidth = av_image_get_linesize(
+						static_cast<AVPixelFormat>(frame->getPixelFormat()),
+						resolution.width,
+						plane
+					);
+
+					const auto height = getSubsampledHeight(frame->getPixelFormat(), resolution.height, plane);
+
+					assert(dstBuffers[plane].size() >= byteWidth * height);
+					av_image_copy_plane(
+						reinterpret_cast<uint8_t*>(dstBuffers[plane].data()),
+						byteWidth, //Vulkan does not leave spacing between lines
+						reinterpret_cast<const uint8_t*>(srcBuffers[plane]),
+						srcLinesizes[plane],
+						byteWidth,
+						height
+					);
 				}
 
-				uploader = Graphics::Uploader(uploader.getVulkan(), frameDesc);
-				lastFrameCharacteristics = frameCharacteristics;
+				result->flush();
+				return result;
 			}
 
-			auto result = uploader.acquireFrame();
-			assert(result);
-			
-			const auto& dstBuffers = result->getPixelData();
-			const auto srcBuffers = frame->getData();
-			const auto srcLinesizes = frame->getLineSizes();
-			const auto planeCount = Math::min(dstBuffers.size(), srcBuffers.size());
-			const auto resolution = frame->getResolution();
-			assert(srcBuffers.size() == srcLinesizes.size());
+			//Fail
+			return Zuazo::Video();
+		}
 
-			//Copy all the data into it
-			for(size_t plane = 0; plane < planeCount; plane++) {
-				//Copy plane by plane
-				const auto byteWidth = av_image_get_linesize(
-					static_cast<AVPixelFormat>(frame->getPixelFormat()),
-					resolution.width,
-					plane
-				);
-
-				const auto height = getSubsampledHeight(frame->getPixelFormat(), resolution.height, plane);
-
-				assert(dstBuffers[plane].size() >= byteWidth * height);
-				av_image_copy_plane(
-					reinterpret_cast<uint8_t*>(dstBuffers[plane].data()),
-					byteWidth, //Vulkan does not leave spacing between lines
-					reinterpret_cast<const uint8_t*>(srcBuffers[plane]),
-					srcLinesizes[plane],
-					byteWidth,
-					height
+		void videoModeCallback(const VideoMode& videoMode) {
+			if(videoMode) {
+				uploader = Graphics::Uploader(
+					uploader.getVulkan(), 
+					videoMode.getFrameDescriptor()
 				);
 			}
-
-			result->flush();
-			return result;
 		}
 
 	private:
-		static Graphics::Uploader createUploader(const Graphics::Vulkan& vulkan, const FrameCharacteristics& frameChar) {
-			return Graphics::Uploader(
-				vulkan,
-				convertFrameCharacteristics(frameChar)
-			);
-		}
-
 		static FrameCharacteristics createFrameCharacteristics() {
 			return std::make_tuple(
 				Resolution(0, 0),
@@ -115,18 +120,6 @@ struct FFmpegUploader::Impl {
 				FFmpeg::ColorTransferCharacteristic::NONE,
 				FFmpeg::ColorRange::NONE,
 				FFmpeg::PixelFormat::NONE
-			);
-		}
-
-		static FrameCharacteristics createFrameCharacteristics(const FFmpeg::CodecParameters& codecPar) {
-			return std::make_tuple(
-				codecPar.getResolution(),
-				codecPar.getPixelAspectRatio(),
-				codecPar.getColorPrimaries(),
-				codecPar.getColorSpace(),
-				codecPar.getColorTransferCharacteristic(),
-				codecPar.getColorRange(),
-				codecPar.getPixelFormat()
 			);
 		}
 
@@ -142,31 +135,41 @@ struct FFmpegUploader::Impl {
 			);
 		}
 
-		static Graphics::Frame::Descriptor convertFrameCharacteristics(const FrameCharacteristics& frameChar) {
-			return std::apply(&Open::createFrameDescriptor, frameChar);
+		static std::vector<VideoMode> getVideoModeCompatibility(const FrameCharacteristics& frameChar) {
+			return std::vector<VideoMode> { std::apply(&Open::createVideoMode, frameChar) };
 		}
 
-		static Graphics::Frame::Descriptor createFrameDescriptor(	Resolution res,
-																	AspectRatio par,
-																	FFmpeg::ColorPrimaries prim,
-																	FFmpeg::ColorSpace space,
-																	FFmpeg::ColorTransferCharacteristic trc,
-																	FFmpeg::ColorRange range,
-																	FFmpeg::PixelFormat fmt ) 
+		static VideoMode createVideoMode(	Resolution res,
+											AspectRatio par,
+											FFmpeg::ColorPrimaries prim,
+											FFmpeg::ColorSpace space,
+											FFmpeg::ColorTransferCharacteristic trc,
+											FFmpeg::ColorRange range,
+											FFmpeg::PixelFormat fmt ) 
 		{	
 			const auto fmtConversion = FFmpeg::fromFFmpeg(fmt);
 			const auto defaultColorModel = fmtConversion.isYCbCr ? ColorModel::BT709 : ColorModel::RGB;
 
-			return Graphics::Frame::Descriptor {
-				res,
-				par,
-				(prim != FFmpeg::ColorPrimaries::NONE) ? FFmpeg::fromFFmpeg(prim) : ColorPrimaries::BT709,
-				(space != FFmpeg::ColorSpace::NONE) ? FFmpeg::fromFFmpeg(space) : defaultColorModel,
-				(trc != FFmpeg::ColorTransferCharacteristic::NONE) ? FFmpeg::fromFFmpeg(trc) : ColorTransferFunction::BT709,
-				fmtConversion.colorSubsampling,
-				(range != FFmpeg::ColorRange::NONE) ? FFmpeg::fromFFmpeg(range) : ColorRange::FULL,
-				fmtConversion.colorFormat
-			};
+			const auto resolution = res;
+			const auto pixelAspectRatio = (par != AspectRatio(0, 1)) ? par : AspectRatio(1, 1);
+			const auto colorPrimaries = (prim != FFmpeg::ColorPrimaries::NONE) ? FFmpeg::fromFFmpeg(prim) : ColorPrimaries::BT709;
+			const auto colorModel = (space != FFmpeg::ColorSpace::NONE) ? FFmpeg::fromFFmpeg(space) : defaultColorModel;
+			const auto colorTransferFunction = (trc != FFmpeg::ColorTransferCharacteristic::NONE) ? FFmpeg::fromFFmpeg(trc) : ColorTransferFunction::BT709;
+			const auto colorSubsampling = fmtConversion.colorSubsampling;
+			const auto colorRange = (range != FFmpeg::ColorRange::NONE) ? FFmpeg::fromFFmpeg(range) : ColorRange::FULL;
+			const auto colorFormat = fmtConversion.colorFormat;
+
+			return VideoMode(
+				Utils::Limit<Rate>(Utils::Any<Rate>()),
+				resolution ? Utils::Limit<Resolution>(Utils::MustBe<Resolution>(resolution)) : Utils::Limit<Resolution>(),
+				pixelAspectRatio != AspectRatio(0, 1) ? Utils::Limit<AspectRatio>(Utils::MustBe<AspectRatio>(pixelAspectRatio)) : Utils::Limit<AspectRatio>(),
+				colorPrimaries != ColorPrimaries::NONE ? Utils::Limit<ColorPrimaries>(Utils::MustBe<ColorPrimaries>(colorPrimaries)) : Utils::Limit<ColorPrimaries>(),
+				colorModel != ColorModel::NONE ? Utils::Limit<ColorModel>(Utils::MustBe<ColorModel>(colorModel)) : Utils::Limit<ColorModel>(),
+				colorTransferFunction != ColorTransferFunction::NONE ? Utils::Limit<ColorTransferFunction>(Utils::MustBe<ColorTransferFunction>(colorTransferFunction)) : Utils::Limit<ColorTransferFunction>(),
+				colorSubsampling != ColorSubsampling::NONE ? Utils::Limit<ColorSubsampling>(Utils::MustBe<ColorSubsampling>(colorSubsampling)) : Utils::Limit<ColorSubsampling>(),
+				colorRange != ColorRange::NONE ? Utils::Limit<ColorRange>(Utils::MustBe<ColorRange>(colorRange)) : Utils::Limit<ColorRange>(),
+				colorFormat != ColorFormat::NONE ? Utils::Limit<ColorFormat>(Utils::MustBe<ColorFormat>(colorFormat)) : Utils::Limit<ColorFormat>()
+			);
 		}
 
 		static uint32_t getSubsampledHeight(FFmpeg::PixelFormat pixFmt, uint32_t height, int plane) {
@@ -175,21 +178,12 @@ struct FFmpegUploader::Impl {
 			const uint32_t s = (plane == 1 || plane == 2) ? desc->log2_chroma_h : 0;
 			return (height + (1 << s) - 1) >> s;
 		}
-
-		static bool isValid(const Graphics::Frame::Descriptor& desc) {
-			return 	desc.resolution &&
-					desc.pixelAspectRatio &&
-					desc.colorPrimaries != ColorPrimaries::NONE &&
-					desc.colorModel != ColorModel::NONE &&
-					desc.colorTransferFunction != ColorTransferFunction::NONE &&
-					desc.colorSubsampling != ColorSubsampling::NONE &&
-					desc.colorRange != ColorRange::NONE &&
-					desc.colorFormat != ColorFormat::NONE ;
-		}
 	};
 
 	using Input = Signal::Input<FFmpeg::Video>;
 	using Output = Signal::Output<Zuazo::Video>;
+
+	std::reference_wrapper<FFmpegUploader> owner;
 
 	Input 					videoIn;
 	Output					videoOut;
@@ -197,7 +191,8 @@ struct FFmpegUploader::Impl {
 	std::unique_ptr<Open> 	opened;
 
 	Impl(FFmpegUploader& uploader)
-		: videoIn(std::string(Signal::makeInputName<FFmpeg::Video>()))
+		: owner(uploader)
+		, videoIn(std::string(Signal::makeInputName<FFmpeg::Video>()))
 		, videoOut(std::string(Signal::makeOutputName<Zuazo::Video>()), createPullCallback(uploader))
 	{
 	}
@@ -205,13 +200,19 @@ struct FFmpegUploader::Impl {
 	~Impl() = default;
 
 	void moved(ZuazoBase& base) {
-		auto& uploader = static_cast<FFmpegUploader&>(base);
-		videoOut.setPullCallback(createPullCallback(uploader));
+		owner = static_cast<FFmpegUploader&>(base);
+		videoOut.setPullCallback(createPullCallback(owner));
 	}
 
 	void open(ZuazoBase& base) {
 		assert(!opened);
-		opened = Utils::makeUnique<Open>(base.getInstance().getVulkan());
+		const auto& ffmpegUploader = static_cast<FFmpegUploader&>(base);
+		assert(&owner.get() == &ffmpegUploader);
+
+		opened = Utils::makeUnique<Open>(
+			ffmpegUploader.getInstance().getVulkan(),
+			ffmpegUploader.getVideoMode()
+		);
 	}
 
 	void close(ZuazoBase&) {
@@ -225,9 +226,13 @@ struct FFmpegUploader::Impl {
 		if(opened){
 			if(videoIn.hasChanged()) {
 				const auto& frame = videoIn.pull();
-				videoOut.push(frame ? opened->process(frame) : Zuazo::Video());
+				videoOut.push(frame ? opened->process(owner, frame) : Zuazo::Video());
 			}
 		} 
+	}
+
+	void videoModeCallabck(VideoBase&, const VideoMode& videoMode) {
+		if(opened) opened->videoModeCallback(videoMode);
 	}
 
 private:
@@ -245,14 +250,16 @@ private:
  * FFmpegUploader
  */
 
-FFmpegUploader::FFmpegUploader(Instance& instance, std::string name)
+FFmpegUploader::FFmpegUploader(Instance& instance, std::string name, VideoMode videoMode)
 	: ZuazoBase(instance, std::move(name))
+	, VideoBase(std::move(videoMode))
 	, m_impl({}, *this)
 {
 	setMoveCallback(std::bind(&Impl::moved, std::ref(*m_impl), std::placeholders::_1));
 	setOpenCallback(std::bind(&Impl::open, std::ref(*m_impl), std::placeholders::_1));
 	setCloseCallback(std::bind(&Impl::close, std::ref(*m_impl), std::placeholders::_1));
 	setUpdateCallback(std::bind(&Impl::update, std::ref(*m_impl)));
+	setVideoModeCallback(std::bind(&Impl::videoModeCallabck, std::ref(*m_impl), std::placeholders::_1, std::placeholders::_2));
 
 	registerPads( {m_impl->videoIn, m_impl->videoOut} );
 }

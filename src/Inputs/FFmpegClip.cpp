@@ -25,24 +25,32 @@ namespace Zuazo::Inputs {
 
 struct FFmpegClip::Impl {
 	struct Open {
+		using DecoderOutput = Signal::Layout::PadProxy<Signal::Output<FFmpeg::Video>>;
+
 		FFmpegDemuxer&				demuxer;
 		int							videoStreamIndex;
 		int							audioStreamIndex;
 		Processors::FFmpegDecoder 	videoDecoder;
 		Processors::FFmpegDecoder 	audioDecoder;
-		Processors::FFmpegUploader 	videoUploader;
-		TimePoint					lastPTS;
+		const DecoderOutput&		videoDecoderOutput;
+		const DecoderOutput&		audioDecoderOutput;
 
-		static constexpr TimePoint NO_PTS = TimePoint(Duration(AV_NOPTS_VALUE));
+		Processors::FFmpegUploader 	videoUploader;
+
+		TimePoint					decodedTimeStamp;
+
+		static constexpr auto NO_TS = TimePoint(Duration(-1));
 
 		Open(Inputs::FFmpegDemuxer& demux)
 			: demuxer(demux)
 			, videoStreamIndex(getStreamIndex(demuxer, Zuazo::FFmpeg::MediaType::VIDEO))
 			, audioStreamIndex(getStreamIndex(demuxer, Zuazo::FFmpeg::MediaType::AUDIO))
-			, videoDecoder(demuxer.getInstance(), "Video Decoder", getCodecParameters(demuxer, videoStreamIndex))
-			, audioDecoder(demuxer.getInstance(), "Audio Decoder", getCodecParameters(demuxer, audioStreamIndex))
+			, videoDecoder(demuxer.getInstance(), "Video Decoder", getCodecParameters(demuxer, videoStreamIndex), createDemuxCallback(videoStreamIndex))
+			, audioDecoder(demuxer.getInstance(), "Audio Decoder", getCodecParameters(demuxer, audioStreamIndex), createDemuxCallback(audioStreamIndex))
+			, videoDecoderOutput(getOutput(videoDecoder))
+			, audioDecoderOutput(getOutput(audioDecoder))
 			, videoUploader(demuxer.getInstance(), "Video Uploader")
-			, lastPTS(NO_PTS)
+			, decodedTimeStamp(NO_TS)
 		{
 			//Route all the signals
 			routePacketStream(demuxer, videoDecoder, videoStreamIndex);
@@ -61,50 +69,42 @@ struct FFmpegClip::Impl {
 
 		~Open() = default;
 
-		void update() {
-			const auto lastIndex = demuxer.getLastStreamIndex();
-
-			if(isValidIndex(lastIndex)) {
-				if(lastIndex == videoStreamIndex) {
-					update(videoDecoder, videoStreamIndex);
-				} else if (lastIndex == audioStreamIndex) {
-					//update(audioDecoder, audioStreamIndex); //TODO currently no need to decode audio
-				}
-			}
+		void decode(TimePoint targetTimeStamp) {
+			const auto streams = demuxer.getStreams();
+			
+			decodedTimeStamp = Math::max(decodedTimeStamp, decode(videoDecoder, videoStreamIndex, videoDecoderOutput, streams, targetTimeStamp));
+			decodedTimeStamp = Math::max(decodedTimeStamp, decode(audioDecoder, audioStreamIndex, audioDecoderOutput, streams, targetTimeStamp));
 		}
 
 		void flush() {
 			flush(videoDecoder, videoStreamIndex);
 			flush(audioDecoder, audioStreamIndex);
-			lastPTS = NO_PTS;
+			decodedTimeStamp = NO_TS;
 		}
 
 	private:
-		void update(Processors::FFmpegDecoder& decoder, int index) {
-			assert(decoder.isOpen());
-			if(isValidIndex(index)) {
-				decoder.update();
-				
-				//Update the timestamp
-				const auto timeStamp = decoder.getLastPTS();
-				if(timeStamp != AV_NOPTS_VALUE) {
-					const auto streams = demuxer.getStreams();
-					const auto srcTimeBase = streams[index].getTimeBase();
-					const auto dstTimeBase = Math::Rational<int>(Duration::period::num, Duration::period::den);
-					const auto rescaledTimeStamp =  av_rescale_q(
-						timeStamp, 
-						AVRational{ srcTimeBase.getNumerator(), srcTimeBase.getDenominator() },
-						AVRational{ dstTimeBase.getNumerator(), dstTimeBase.getDenominator() }
-					);
+		void demuxCallback(int index) {
+			assert(isValidIndex(index));
 
-					lastPTS = Math::max(lastPTS, TimePoint(Duration(rescaledTimeStamp)));
+			do {
+				demuxer.update();
+				const auto lastIndex = demuxer.getLastStreamIndex();
+
+				if(isValidIndex(lastIndex)) {
+					if(lastIndex == videoStreamIndex) {
+						update(videoDecoder, videoStreamIndex);
+					} else if (lastIndex == audioStreamIndex) {
+						update(audioDecoder, audioStreamIndex); //TODO currently no need to decode audio
+					}
 				}
-			}
+			} while(demuxer.getLastStreamIndex() != index);
 		}
 
-		static bool isValidIndex(int index) {
-			return index >= 0;
+
+		Processors::FFmpegDecoder::DemuxCallback createDemuxCallback(int index) {
+			return isValidIndex(index) ? std::bind(&Open::demuxCallback, std::ref(*this), index) : Processors::FFmpegDecoder::DemuxCallback();
 		}
+
 
 		static int getStreamIndex(const Inputs::FFmpegDemuxer& demuxer, Zuazo::FFmpeg::MediaType type) {
 			assert(demuxer.isOpen());
@@ -116,6 +116,10 @@ struct FFmpegClip::Impl {
 			return 	isValidIndex(index)
 					? Zuazo::FFmpeg::CodecParameters(streams[index].getCodecParameters())
 					: Zuazo::FFmpeg::CodecParameters();
+		}
+
+		static const DecoderOutput& getOutput(const Processors::FFmpegDecoder& decoder) {
+			return Signal::getOutput<FFmpeg::Video>(decoder);
 		}
 
 		static void routePacketStream(Inputs::FFmpegDemuxer& demuxer, Processors::FFmpegDecoder& decoder, int index) {
@@ -145,6 +149,39 @@ struct FFmpegClip::Impl {
 			}
 		}
 
+		static void update(Processors::FFmpegDecoder& decoder, int index) {
+			if(isValidIndex(index)) {
+				assert(decoder.isOpen());
+				decoder.update();
+			}
+		}
+
+		static TimePoint decode(Processors::FFmpegDecoder& decoder, int index, const DecoderOutput& output, const FFmpegDemuxer::Streams& streams, TimePoint targetTimeStamp) {
+			TimePoint decodedTimeStamp = NO_TS;
+
+			if(isValidIndex(index)) {
+				assert(decoder.isOpen());
+				assert(Math::isInRange(index, 0, static_cast<int>(streams.size() - 1)));		
+				const auto& stream = streams[index];
+
+				if(!output.getLastElement()) {
+					//Nothing at the output. Decode just in case it is the first time
+					decoder.decode();
+				}
+
+				//Decode until the target timestamp is reached
+				while(output.getLastElement() && (decodedTimeStamp < targetTimeStamp)) {
+					assert(output.getLastElement());
+					const auto& frame = *output.getLastElement();
+
+					decodedTimeStamp = calculateTimeStamp(stream, frame);
+					decoder.decode();
+				}
+			}
+
+			return decodedTimeStamp;
+		}
+
 		static void flush(Processors::FFmpegDecoder& decoder, int index) {
 			if(isValidIndex(index)) {
 				assert(decoder.isOpen());
@@ -156,6 +193,27 @@ struct FFmpegClip::Impl {
 			decoder.setThreadCount(0); //Use all available threads
 			decoder.setThreadType(FFmpeg::ThreadType::FRAME); //Don't care the delay
 		}
+
+
+		static bool isValidIndex(int index) {
+			return index >= 0;
+		}
+
+		static TimePoint calculateTimeStamp(const FFmpeg::StreamParameters& stream, const FFmpeg::Frame& frame) {
+			const auto pts = frame.getPTS();
+			const auto dur = frame.getPacketDuration();
+			const auto timeStamp = pts + (dur > 0 ? dur - 1 : 0);
+
+			const auto timeBase = stream.getTimeBase();
+			const auto rescaledTimeStamp = av_rescale_q(
+				timeStamp, 
+				AVRational{ timeBase.getNumerator(), timeBase.getDenominator() },	//Src time base
+				AVRational{ Duration::period::num, Duration::period::den }			//Dst time-base
+			);
+
+			return TimePoint(Duration(rescaledTimeStamp));
+		}
+
 	};
 
 
@@ -182,8 +240,8 @@ struct FFmpegClip::Impl {
 
 	void open(ZuazoBase& base) {
 		assert(!opened);
-		auto& ff = static_cast<FFmpegClip&>(base);
-		assert(&owner.get() == &ff);
+		auto& clip = static_cast<FFmpegClip&>(base);
+		assert(&owner.get() == &clip);
 
 		demuxer.open();
 		opened = Utils::makeUnique<Open>(demuxer);
@@ -191,22 +249,22 @@ struct FFmpegClip::Impl {
 		//Route the output signal
 		videoOut << Signal::getOutput<Zuazo::Video>(opened->videoUploader);
 
-		//ff.setDuration(Duration()); //TODO
-		//ff.setTimeStep(Duration()); //TODO
-		ff.setTime(ff.getTime()); //Ensure time point is within limits
-		ff.enableRegularUpdate(Instance::INPUT_PRIORITY);
+		clip.setDuration(demuxer.getDuration() != Duration() ? demuxer.getDuration() : Duration::max());
+		clip.setTimeStep((opened->videoStreamIndex >=0) ? getPeriod(demuxer.getStreams()[opened->videoStreamIndex].getRealFrameRate()) : Duration());
+		clip.setTime(clip.getTime()); //Ensure time point is within limits
+		clip.enableRegularUpdate(Instance::INPUT_PRIORITY);
 
-		refresh(ff); //Ensure that the first frame has been decoded
+		refresh(clip); //Ensure that the first frame has been decoded
 	}
 
 	void close(ZuazoBase& base) {
 		assert(opened);
-		auto& ff = static_cast<FFmpegClip&>(base);
-		assert(&owner.get() == &ff);
+		auto& clip = static_cast<FFmpegClip&>(base);
+		assert(&owner.get() == &clip);
 
-		ff.disableRegularUpdate();
-		ff.setDuration(Duration::max());
-		ff.setTimeStep(Duration());
+		clip.disableRegularUpdate();
+		clip.setDuration(Duration::max());
+		clip.setTimeStep(Duration());
 
 
 		opened.reset();
@@ -214,30 +272,38 @@ struct FFmpegClip::Impl {
 	}
 
 	void update() {
-		FFmpegClip& ff = owner;
-		const auto delta = ff.getInstance().getDeltaT();
-		ff.advance(delta);
+		FFmpegClip& clip = owner;
+		const auto delta = clip.getInstance().getDeltaT();
+		clip.advance(delta);
 	}
 
 	void refresh(ClipBase& base) {
 		if(opened) {
-			const auto timePoint = base.getTime();
-			const auto delta = timePoint - opened->lastPTS;
+			auto& clip = static_cast<FFmpegClip&>(base);
+			assert(&owner.get() == &clip);
+
+			const auto targetTimeStamp = clip.getTime();
+			const auto delta = targetTimeStamp - opened->decodedTimeStamp;
 
 			if(delta < Duration(0)) {
 				//Time has gone back!
-
-				demuxer.seek(timePoint);
+				demuxer.seek(targetTimeStamp);
 				demuxer.flush();
 				opened->flush();
 			}
 
-			while(opened->lastPTS < timePoint) {
-				demuxer.update();
-				opened->update();
+			opened->decode(targetTimeStamp);
+			if(opened->decodedTimeStamp < targetTimeStamp) {
+				//Could not decode til the end
+				clip.setDuration(opened->decodedTimeStamp.time_since_epoch());
 			}
+
+			printf("%lf\n", static_cast<double>(opened->decodedTimeStamp.time_since_epoch().count()) / clip.getDuration().count());
 		}
 	}
+
+private:
+
 };
 
 

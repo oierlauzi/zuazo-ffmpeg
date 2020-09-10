@@ -98,6 +98,12 @@ int CodecContext::readFrame(Frame& frame) {
 
 
 
+void CodecContext::flush() {
+	avcodec_flush_buffers(&get());
+}
+
+
+
 AVCodecContext& CodecContext::get() {
 	assert(m_handle);
 	return *m_handle;

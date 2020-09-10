@@ -60,6 +60,9 @@ int InputFormatContext::findBestStream(MediaType type) const {
 	);
 }
 
+int64_t InputFormatContext::getDuration() const {
+	return get().duration;
+}
 
 
 int InputFormatContext::play() {

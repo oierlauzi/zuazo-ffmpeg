@@ -5,13 +5,20 @@
 #include <zuazo/FFmpeg/Enumerations.h>
 #include <zuazo/FFmpeg/CodecParameters.h>
 
+#include <functional>
+
 namespace Zuazo::Processors {
 
 class FFmpegDecoder
 	: public ZuazoBase
 {
 public:
-	FFmpegDecoder(Instance& instance, std::string name, FFmpeg::CodecParameters codecPar = {});
+	using DemuxCallback = std::function<void()>;
+
+	FFmpegDecoder(	Instance& instance, 
+					std::string name, 
+					FFmpeg::CodecParameters codecPar = {},
+					DemuxCallback demuxCbk = {});
 	FFmpegDecoder(const FFmpegDecoder& other) = delete;
 	FFmpegDecoder(FFmpegDecoder&& other);
 	~FFmpegDecoder();
@@ -20,6 +27,9 @@ public:
 	FFmpegDecoder&					operator=(FFmpegDecoder&& other);
 
 	using ZuazoBase::update;
+
+	void							decode();
+	void							flush();
 
 	void							setCodecParameters(FFmpeg::CodecParameters codecPar);
 	const FFmpeg::CodecParameters& 	getCodecParameters() const;
@@ -30,8 +40,8 @@ public:
 	void							setThreadType(FFmpeg::ThreadType type);
 	FFmpeg::ThreadType				getThreadType() const;
 
-	int64_t							getLastPTS() const;
-	void							flush();
+	void							setDemuxCallback(DemuxCallback cbk);
+	const DemuxCallback&			getDemuxCallback() const;
 
 private:
 	struct Impl;
