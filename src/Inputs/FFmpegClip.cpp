@@ -297,8 +297,6 @@ struct FFmpegClip::Impl {
 				//Could not decode til the end
 				clip.setDuration(opened->decodedTimeStamp.time_since_epoch());
 			}
-
-			printf("%lf\n", static_cast<double>(opened->decodedTimeStamp.time_since_epoch().count()) / clip.getDuration().count());
 		}
 	}
 
