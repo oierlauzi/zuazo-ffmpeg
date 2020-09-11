@@ -94,7 +94,7 @@ struct FFmpegClip::Impl {
 					if(lastIndex == videoStreamIndex) {
 						update(videoDecoder, videoStreamIndex);
 					} else if (lastIndex == audioStreamIndex) {
-						update(audioDecoder, audioStreamIndex); //TODO currently no need to decode audio
+						update(audioDecoder, audioStreamIndex);
 					}
 				}
 			} while(demuxer.getLastStreamIndex() != index);
@@ -164,18 +164,22 @@ struct FFmpegClip::Impl {
 				assert(Math::isInRange(index, 0, static_cast<int>(streams.size() - 1)));		
 				const auto& stream = streams[index];
 
-				if(!output.getLastElement()) {
-					//Nothing at the output. Decode just in case it is the first time
-					decoder.decode();
+
+				//Set the decoded timestamp if available
+				if(output.getLastElement()) {
+					decodedTimeStamp = calculateTimeStamp(stream, *(output.getLastElement()));
 				}
 
 				//Decode until the target timestamp is reached
-				while(output.getLastElement() && (decodedTimeStamp < targetTimeStamp)) {
-					assert(output.getLastElement());
-					const auto& frame = *output.getLastElement();
-
-					decodedTimeStamp = calculateTimeStamp(stream, frame);
-					decoder.decode();
+				while(decodedTimeStamp < targetTimeStamp) {
+					if(decoder.decode()) {
+						//Succesfuly decoded something!
+						assert(output.getLastElement());
+						decodedTimeStamp = calculateTimeStamp(stream, *(output.getLastElement()));
+					} else {
+						//Failed to decode. Exit
+						break;
+					}
 				}
 			}
 

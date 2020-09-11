@@ -157,10 +157,17 @@ struct FFmpegDecoder::Impl {
 		}
 	}
 
-	void decode() {
+	bool decode() {
 		if(opened) {
-			videoOut.push(opened->decode(demuxCallback));
+			auto result = opened->decode(demuxCallback);
+
+			if(result) {
+				videoOut.push(std::move(result));
+				return true;
+			}
 		}
+
+		return false;
 	}
 
 	void flush() {
@@ -238,8 +245,8 @@ FFmpegDecoder& FFmpegDecoder::operator=(FFmpegDecoder&& other) = default;
 
 
 
-void FFmpegDecoder::decode() {
-	m_impl->decode();
+bool FFmpegDecoder::decode() {
+	return m_impl->decode();
 }
 
 void FFmpegDecoder::flush() {

@@ -28,7 +28,7 @@ public:
 
 	using ZuazoBase::update;
 
-	void							decode();
+	bool							decode();
 	void							flush();
 
 	void							setCodecParameters(FFmpeg::CodecParameters codecPar);
