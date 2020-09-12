@@ -47,12 +47,47 @@ static_assert(static_cast<int>(SeekFlags::BYTE) == AVSEEK_FLAG_BYTE, "Seek BYTE 
 static_assert(static_cast<int>(SeekFlags::ANY) == AVSEEK_FLAG_ANY, "Seek ANY value must match");
 static_assert(static_cast<int>(SeekFlags::FRAME) == AVSEEK_FLAG_FRAME, "Seek FRAME value must match");
 
-MediaType getMediaType(FFmpeg::CodecID id) {
+MediaType getMediaType(CodecID id) {
 	return static_cast<MediaType>(avcodec_get_type(static_cast<AVCodecID>(id)));
 }
 
-std::string_view getProfileName(FFmpeg::CodecID id, int profile) {
+std::string_view getProfileName(CodecID id, int profile) {
 	return avcodec_profile_name(static_cast<AVCodecID>(id), profile);
+}
+
+
+
+std::ostream& operator<<(std::ostream& os, MediaType type) {
+	return os << toString(type);
+}
+
+std::ostream& operator<<(std::ostream& os, CodecID id) {
+	return os << toString(id);
+}
+
+std::ostream& operator<<(std::ostream& os, PixelFormat fmt) {
+	return os << toString(fmt);
+}
+
+std::ostream& operator<<(std::ostream& os, ColorPrimaries prim) {
+	return os << toString(prim);
+}
+
+std::ostream& operator<<(std::ostream& os, ColorSpace space) {
+	return os << toString(space);
+}
+
+std::ostream& operator<<(std::ostream& os, ColorRange range) {
+	return os << toString(range);
+}
+
+std::ostream& operator<<(std::ostream& os, ChromaLocation loc) {
+	return os << toString(loc);
+}
+
+std::ostream& operator<<(std::ostream& os, PictureType type) {
+	char str = toString(type);
+	return os << std::string_view(&str, 1);
 }
 
 }
@@ -63,41 +98,17 @@ std::string_view toString(FFmpeg::MediaType type) {
 	return std::string_view(av_get_media_type_string(static_cast<AVMediaType>(type)));
 }
 
-std::ostream& operator<<(std::ostream& os, FFmpeg::MediaType type) {
-	return os << toString(type);
-}
-
-
-
 std::string_view toString(FFmpeg::CodecID id) {
 	return std::string_view(avcodec_get_name(static_cast<AVCodecID>(id)));
 }
-
-std::ostream& operator<<(std::ostream& os, FFmpeg::CodecID id) {
-	return os << toString(id);
-}
-
-
 
 std::string_view toString(FFmpeg::PixelFormat fmt) {
 	return std::string_view(av_get_pix_fmt_name(static_cast<AVPixelFormat>(fmt)));
 }
 
-std::ostream& operator<<(std::ostream& os, FFmpeg::PixelFormat fmt) {
-	return os << toString(fmt);
-}
-
-
-
 std::string_view toString(FFmpeg::ColorPrimaries prim) {
 	return std::string_view(av_color_primaries_name(static_cast<AVColorPrimaries>(prim)));
 }
-
-std::ostream& operator<<(std::ostream& os, FFmpeg::ColorPrimaries prim) {
-	return os << toString(prim);
-}
-
-
 
 std::string_view toString(FFmpeg::ColorTransferCharacteristic trc) {
 	return std::string_view(av_color_transfer_name(static_cast<AVColorTransferCharacteristic>(trc)));
@@ -107,44 +118,20 @@ std::ostream& operator<<(std::ostream& os, FFmpeg::ColorTransferCharacteristic t
 	return os << toString(trc);
 }
 
-
-
 std::string_view toString(FFmpeg::ColorSpace space) {
 	return std::string_view(av_color_space_name(static_cast<AVColorSpace>(space)));
 }
-
-std::ostream& operator<<(std::ostream& os, FFmpeg::ColorSpace space) {
-	return os << toString(space);
-}
-
-
 
 std::string_view toString(FFmpeg::ColorRange range) {
 	return std::string_view(av_color_range_name(static_cast<AVColorRange>(range)));
 }
 
-std::ostream& operator<<(std::ostream& os, FFmpeg::ColorRange range) {
-	return os << toString(range);
-}
-
-
-
 std::string_view toString(FFmpeg::ChromaLocation loc) {
 	return std::string_view(av_chroma_location_name(static_cast<AVChromaLocation>(loc)));
 }
 
-std::ostream& operator<<(std::ostream& os, FFmpeg::ChromaLocation loc) {
-	return os << toString(loc);
-}
-
-
 char toString(FFmpeg::PictureType type) {
 	return av_get_picture_type_char(static_cast<AVPictureType>(type));
-}
-
-std::ostream& operator<<(std::ostream& os, FFmpeg::PictureType type) {
-	char str = toString(type);
-	return os << std::string_view(&str, 1);
 }
 
 }

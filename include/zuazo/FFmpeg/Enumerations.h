@@ -19,6 +19,8 @@ enum class MediaType {
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(MediaType)
 ZUAZO_ENUM_COMP_OPERATORS(MediaType)	
 
+std::ostream& operator<<(std::ostream& os, MediaType type);
+
 
 
 enum class CodecID {
@@ -28,8 +30,10 @@ enum class CodecID {
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(CodecID)
 ZUAZO_ENUM_COMP_OPERATORS(CodecID)	
 
-MediaType getMediaType(FFmpeg::CodecID id);
-std::string_view getProfileName(FFmpeg::CodecID id, int profile);
+MediaType getMediaType(CodecID id);
+std::string_view getProfileName(CodecID id, int profile);
+
+std::ostream& operator<<(std::ostream& os, CodecID id);
 
 
 
@@ -40,6 +44,8 @@ enum class PixelFormat {
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(PixelFormat)
 ZUAZO_ENUM_COMP_OPERATORS(PixelFormat)	
 
+std::ostream& operator<<(std::ostream& os, PixelFormat fmt);
+
 
 
 enum class ColorPrimaries {
@@ -48,6 +54,8 @@ enum class ColorPrimaries {
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(ColorPrimaries)
 ZUAZO_ENUM_COMP_OPERATORS(ColorPrimaries)	
+
+std::ostream& operator<<(std::ostream& os, ColorPrimaries prim);
 
 
 
@@ -58,6 +66,8 @@ enum class ColorTransferCharacteristic {
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(ColorTransferCharacteristic)
 ZUAZO_ENUM_COMP_OPERATORS(ColorTransferCharacteristic)	
 
+std::ostream& operator<<(std::ostream& os, ColorTransferCharacteristic trc);
+
 
 
 enum class ColorSpace {
@@ -66,6 +76,8 @@ enum class ColorSpace {
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(ColorSpace)
 ZUAZO_ENUM_COMP_OPERATORS(ColorSpace)	
+
+std::ostream& operator<<(std::ostream& os, ColorSpace space);
 
 
 
@@ -76,6 +88,8 @@ enum class ColorRange {
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(ColorRange)
 ZUAZO_ENUM_COMP_OPERATORS(ColorRange)	
 
+std::ostream& operator<<(std::ostream& os, ColorRange range);
+
 
 
 enum class ChromaLocation {
@@ -84,6 +98,8 @@ enum class ChromaLocation {
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(ChromaLocation)
 ZUAZO_ENUM_COMP_OPERATORS(ChromaLocation)	
+
+std::ostream& operator<<(std::ostream& os, ChromaLocation loc);
 
 
 
@@ -95,6 +111,8 @@ enum class FieldOrder {
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(FieldOrder)
 ZUAZO_ENUM_COMP_OPERATORS(FieldOrder)	
 
+//std::ostream& operator<<(std::ostream& os, FieldOrder order);
+
 
 
 enum class PictureType {
@@ -103,6 +121,8 @@ enum class PictureType {
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(PictureType)
 ZUAZO_ENUM_COMP_OPERATORS(PictureType)	
+
+std::ostream& operator<<(std::ostream& os, PictureType type);
 
 
 
@@ -113,6 +133,8 @@ enum class Discard {
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(Discard)
 ZUAZO_ENUM_COMP_OPERATORS(Discard)	
 
+//std::ostream& operator<<(std::ostream& os, Discard disc);
+
 
 
 enum class ThreadType {
@@ -122,6 +144,8 @@ enum class ThreadType {
 };
 
 ZUAZO_ENUM_BIT_OPERATORS(ThreadType)
+
+//std::ostream& operator<<(std::ostream& os, ThreadType disc);
 
 
 
@@ -135,47 +159,25 @@ enum class SeekFlags {
 
 ZUAZO_ENUM_BIT_OPERATORS(SeekFlags)
 
+//std::ostream& operator<<(std::ostream& os, SeekFlags seek);
+
 }
 
 namespace Zuazo {
 
 std::string_view toString(FFmpeg::MediaType type);
-std::ostream& operator<<(std::ostream& os, FFmpeg::MediaType type);
-
 std::string_view toString(FFmpeg::CodecID id);
-std::ostream& operator<<(std::ostream& os, FFmpeg::CodecID id);
-
 std::string_view toString(FFmpeg::PixelFormat fmt);
-std::ostream& operator<<(std::ostream& os, FFmpeg::PixelFormat fmt);
-
 std::string_view toString(FFmpeg::ColorPrimaries prim);
-std::ostream& operator<<(std::ostream& os, FFmpeg::ColorPrimaries prim);
-
 std::string_view toString(FFmpeg::ColorTransferCharacteristic trc);
-std::ostream& operator<<(std::ostream& os, FFmpeg::ColorTransferCharacteristic trc);
-
 std::string_view toString(FFmpeg::ColorSpace space);
-std::ostream& operator<<(std::ostream& os, FFmpeg::ColorSpace space);
-
 std::string_view toString(FFmpeg::ColorRange range);
-std::ostream& operator<<(std::ostream& os, FFmpeg::ColorRange range);
-
 std::string_view toString(FFmpeg::ChromaLocation loc);
-std::ostream& operator<<(std::ostream& os, FFmpeg::ChromaLocation loc);
-
 //std::string_view toString(FFmpeg::FieldOrder order);
-//std::ostream& operator<<(std::ostream& os, FFmpeg::FieldOrder order);
-
 char toString(FFmpeg::PictureType type);
-std::ostream& operator<<(std::ostream& os, FFmpeg::PictureType type);
-
 //std::string_view toString(FFmpeg::Discard disc);
-//std::ostream& operator<<(std::ostream& os, FFmpeg::Discard disc);
-
 //std::string_view toString(FFmpeg::ThreadType disc);
-//std::ostream& operator<<(std::ostream& os, FFmpeg::ThreadType disc);
-
 //std::string_view toString(FFmpeg::SeekFlags seek);
-//std::ostream& operator<<(std::ostream& os, FFmpeg::SeekFlags seek);
+
 
 }
