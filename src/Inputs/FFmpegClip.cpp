@@ -35,8 +35,6 @@ struct FFmpegClip::Impl {
 		const DecoderOutput&		videoDecoderOutput;
 		const DecoderOutput&		audioDecoderOutput;
 
-		Processors::FFmpegUploader 	videoUploader;
-
 		TimePoint					decodedTimeStamp;
 
 		static constexpr auto NO_TS = TimePoint(Duration(-1));
@@ -49,13 +47,11 @@ struct FFmpegClip::Impl {
 			, audioDecoder(demuxer.getInstance(), "Audio Decoder", getCodecParameters(demuxer, audioStreamIndex), createDemuxCallback(audioStreamIndex))
 			, videoDecoderOutput(getOutput(videoDecoder))
 			, audioDecoderOutput(getOutput(audioDecoder))
-			, videoUploader(demuxer.getInstance(), "Video Uploader")
 			, decodedTimeStamp(NO_TS)
 		{
 			//Route all the signals
 			routePacketStream(demuxer, videoDecoder, videoStreamIndex);
 			routePacketStream(demuxer, audioDecoder, audioStreamIndex);
-			routeVideoStream(videoDecoder, videoUploader);
 
 			//Enable multithreading
 			enableMultithreading(videoDecoder);
@@ -64,7 +60,6 @@ struct FFmpegClip::Impl {
 			//Open them
 			open(videoDecoder, videoStreamIndex);
 			open(audioDecoder, audioStreamIndex);
-			open(videoUploader, videoStreamIndex);
 		}
 
 		~Open() = default;
@@ -224,6 +219,7 @@ struct FFmpegClip::Impl {
 	std::reference_wrapper<FFmpegClip> 	owner;
 
 	Inputs::FFmpegDemuxer 				demuxer;
+	Processors::FFmpegUploader 			videoUploader;
 	
 	Signal::DummyPad<Video>				videoOut;
 
@@ -232,14 +228,18 @@ struct FFmpegClip::Impl {
 	Impl(FFmpegClip& ffmpeg, std::string url)
 		: owner(ffmpeg)
 		, demuxer(ffmpeg.getInstance(), "Demuxer", std::move(url))
+		, videoUploader(ffmpeg.getInstance(), "Video Uploader", ffmpeg.getVideoModeLimits())
 		, videoOut(std::string(Signal::makeOutputName<Zuazo::Video>()))
 	{
+		//Route the output signal
+		videoOut << Signal::getOutput<Zuazo::Video>(videoUploader);
 	}
 
 	~Impl() = default;
 
 	void moved(ZuazoBase& base) {
 		owner = static_cast<FFmpegClip&>(base);
+		videoUploader.setVideoModeCompatibilityCallback(std::bind(&FFmpegClip::setVideoModeCompatibility, owner, std::placeholders::_2));
 	}
 
 	void open(ZuazoBase& base) {
@@ -248,10 +248,11 @@ struct FFmpegClip::Impl {
 		assert(&owner.get() == &clip);
 
 		demuxer.open();
+		videoUploader.open();
 		opened = Utils::makeUnique<Open>(demuxer);
 
-		//Route the output signal
-		videoOut << Signal::getOutput<Zuazo::Video>(opened->videoUploader);
+		//Route the decoder signal
+		Signal::getInput<FFmpeg::Video>(videoUploader) << Signal::getOutput<FFmpeg::Video>(opened->videoDecoder);
 
 		clip.setDuration(demuxer.getDuration() != Duration() ? demuxer.getDuration() : Duration::max());
 		clip.setTimeStep((opened->videoStreamIndex >=0) ? getPeriod(demuxer.getStreams()[opened->videoStreamIndex].getRealFrameRate()) : Duration());
@@ -272,6 +273,7 @@ struct FFmpegClip::Impl {
 
 
 		opened.reset();
+		videoUploader.close();
 		demuxer.close();
 	}
 
@@ -304,8 +306,6 @@ struct FFmpegClip::Impl {
 		}
 	}
 
-private:
-
 };
 
 
@@ -327,6 +327,11 @@ FFmpegClip::FFmpegClip(	Instance& instance,
 	setCloseCallback(std::bind(&Impl::close, std::ref(*m_impl), std::placeholders::_1));
 	setUpdateCallback(std::bind(&Impl::update, std::ref(*m_impl)));
 	setRefreshCallback(std::bind(&Impl::refresh, std::ref(*m_impl), std::placeholders::_1));
+
+	setVideoModeLimitCallback(std::bind(&VideoBase::setVideoModeLimits, std::ref(m_impl->videoUploader), std::placeholders::_2));
+	m_impl->videoUploader.setVideoModeCompatibilityCallback(std::bind(&FFmpegClip::setVideoModeCompatibility, std::ref(*this), std::placeholders::_2)); //Remember to update it on moved
+
+	setVideoModeLimitCallback(std::bind(&VideoBase::setVideoModeLimits, std::ref(m_impl->videoUploader), std::placeholders::_2));
 
 	registerPad(m_impl->videoOut.getOutput());
 }

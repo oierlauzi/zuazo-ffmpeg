@@ -76,4 +76,15 @@ int main(int argc, const char** argv) {
 	getchar();
 	lock.lock();
 
+
+	std::cout 	<< videoClip.getVideoModeCompatibility()[0].getFrameRate() << ", "
+				<< videoClip.getVideoModeCompatibility()[0].getResolution() << ", "
+				<< videoClip.getVideoModeCompatibility()[0].getPixelAspectRatio() << ", "
+				<< videoClip.getVideoModeCompatibility()[0].getColorModel() << ", "
+				<< videoClip.getVideoModeCompatibility()[0].getColorPrimaries() << ", "
+				<< videoClip.getVideoModeCompatibility()[0].getColorTransferFunction() << ", "
+				<< videoClip.getVideoModeCompatibility()[0].getColorRange() << ", "
+				<< videoClip.getVideoModeCompatibility()[0].getColorSubsampling() << ", "
+				<< videoClip.getVideoModeCompatibility()[0].getColorFormat() << std::endl;
+
 }
