@@ -231,6 +231,9 @@ struct FFmpegClip::Impl {
 		, videoUploader(ffmpeg.getInstance(), "Video Uploader", ffmpeg.getVideoModeLimits())
 		, videoOut(std::string(Signal::makeOutputName<Zuazo::Video>()))
 	{
+		//Setup the compatibility callback
+		videoUploader.setVideoModeCompatibilityCallback(std::bind(&Impl::videoModeCompatibilityCallback, std::ref(*this), std::placeholders::_1, std::placeholders::_2));
+
 		//Route the output signal
 		videoOut << Signal::getOutput<Zuazo::Video>(videoUploader);
 	}
@@ -239,7 +242,6 @@ struct FFmpegClip::Impl {
 
 	void moved(ZuazoBase& base) {
 		owner = static_cast<FFmpegClip&>(base);
-		videoUploader.setVideoModeCompatibilityCallback(std::bind(&FFmpegClip::setVideoModeCompatibility, owner, std::placeholders::_2));
 	}
 
 	void open(ZuazoBase& base) {
@@ -306,6 +308,23 @@ struct FFmpegClip::Impl {
 		}
 	}
 
+private:
+	void videoModeCompatibilityCallback(VideoBase&, std::vector<VideoMode> compatibility) {
+		assert(opened);
+		assert(opened->videoStreamIndex >= 0);
+
+		//Obtain the framerate from the framerate from the video stream
+		const Rate frameRate = opened->demuxer.getStreams()[opened->videoStreamIndex].getRealFrameRate();
+
+		//Set the proper framerate in all the VideoModes
+		for(auto& vm : compatibility) {
+			vm.setFrameRate(Utils::MustBe<Rate>(frameRate));
+		}
+
+		//Update the compatibility in the VideoBase
+		owner.get().setVideoModeCompatibility(std::move(compatibility));
+	}
+
 };
 
 
@@ -327,9 +346,6 @@ FFmpegClip::FFmpegClip(	Instance& instance,
 	setCloseCallback(std::bind(&Impl::close, std::ref(*m_impl), std::placeholders::_1));
 	setUpdateCallback(std::bind(&Impl::update, std::ref(*m_impl)));
 	setRefreshCallback(std::bind(&Impl::refresh, std::ref(*m_impl), std::placeholders::_1));
-
-	setVideoModeLimitCallback(std::bind(&VideoBase::setVideoModeLimits, std::ref(m_impl->videoUploader), std::placeholders::_2));
-	m_impl->videoUploader.setVideoModeCompatibilityCallback(std::bind(&FFmpegClip::setVideoModeCompatibility, std::ref(*this), std::placeholders::_2)); //Remember to update it on moved
 
 	setVideoModeLimitCallback(std::bind(&VideoBase::setVideoModeLimits, std::ref(m_impl->videoUploader), std::placeholders::_2));
 
