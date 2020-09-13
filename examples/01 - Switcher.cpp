@@ -50,7 +50,7 @@ int main(int argc, const char** argv) {
 
 	//Construct the desired video mode
 	const Zuazo::VideoMode videoMode(
-		Zuazo::Utils::MustBe<Zuazo::Rate>(Zuazo::Rate(25, 1)), //Just specify the desired rate
+		Zuazo::Utils::MustBe<Zuazo::Rate>(Zuazo::Rate(60, 1)), //Just specify the desired rate
 		Zuazo::Utils::Any<Zuazo::Resolution>(),
 		Zuazo::Utils::Any<Zuazo::AspectRatio>(),
 		Zuazo::Utils::Any<Zuazo::ColorPrimaries>(),

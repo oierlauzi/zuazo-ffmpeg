@@ -72,9 +72,15 @@ struct FFmpegClip::Impl {
 		}
 
 		void flush() {
+			demuxer.flush();
 			flush(videoDecoder, videoStreamIndex);
 			flush(audioDecoder, audioStreamIndex);
 			decodedTimeStamp = NO_TS;
+		}
+
+		Rate getFrameRate() {
+			const auto streams = demuxer.getStreams();
+			return isValidIndex(videoStreamIndex) ? Rate(streams[videoStreamIndex].getRealFrameRate()) : Rate();
 		}
 
 	private:
@@ -257,7 +263,7 @@ struct FFmpegClip::Impl {
 		Signal::getInput<FFmpeg::Video>(videoUploader) << Signal::getOutput<FFmpeg::Video>(opened->videoDecoder);
 
 		clip.setDuration(demuxer.getDuration() != Duration() ? demuxer.getDuration() : Duration::max());
-		clip.setTimeStep((opened->videoStreamIndex >=0) ? getPeriod(demuxer.getStreams()[opened->videoStreamIndex].getRealFrameRate()) : Duration());
+		clip.setTimeStep(getPeriod(opened->getFrameRate()));
 		clip.setTime(clip.getTime()); //Ensure time point is within limits
 		clip.enableRegularUpdate(Instance::INPUT_PRIORITY);
 
@@ -292,11 +298,12 @@ struct FFmpegClip::Impl {
 
 			const auto targetTimeStamp = clip.getTime();
 			const auto delta = targetTimeStamp - opened->decodedTimeStamp;
+			const auto framePeriod = getPeriod(opened->getFrameRate());
+			constexpr Duration::rep MAX_UNSKIPPED_FRAMES = 16; //TODO find a way to obtain it from the codec GOP
 
-			if(delta < Duration(0)) {
+			if(delta < -framePeriod || delta > framePeriod * MAX_UNSKIPPED_FRAMES) {
 				//Time has gone back!
 				demuxer.seek(targetTimeStamp, FFmpeg::SeekFlags::BACKWARD);
-				demuxer.flush();
 				opened->flush();
 			}
 
@@ -314,7 +321,7 @@ private:
 		assert(opened->videoStreamIndex >= 0);
 
 		//Obtain the framerate from the framerate from the video stream
-		const Rate frameRate = opened->demuxer.getStreams()[opened->videoStreamIndex].getRealFrameRate();
+		const Rate frameRate = opened->getFrameRate();
 
 		//Set the proper framerate in all the VideoModes
 		for(auto& vm : compatibility) {
