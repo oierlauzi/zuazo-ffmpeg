@@ -71,6 +71,7 @@ int main(int argc, const char** argv) {
 		Zuazo::Outputs::Window::NO_MONITOR //No monitor
 	);
 	pgmWindow.setWindowName("Program"); //The actual displayed name
+	pgmWindow.setScalingMode(Zuazo::ScalingMode::BOXED);
 
 	Zuazo::Outputs::Window pvwWindow(
 		instance, 						//Instance
@@ -80,6 +81,7 @@ int main(int argc, const char** argv) {
 		Zuazo::Outputs::Window::NO_MONITOR //No monitor
 	);
 	pvwWindow.setWindowName("Preview");
+	pvwWindow.setScalingMode(Zuazo::ScalingMode::BOXED);
 
 
 	//Create a FFmpegClip object array

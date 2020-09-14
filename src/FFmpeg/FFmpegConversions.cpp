@@ -64,7 +64,7 @@ static AVColorSpace toFFmpegLUT(Zuazo::ColorModel model) {
 	case Zuazo::ColorModel::RGB:		return AVCOL_SPC_RGB;
 	case Zuazo::ColorModel::BT601:		return AVCOL_SPC_BT470BG;
 	case Zuazo::ColorModel::BT709:		return AVCOL_SPC_BT709;
-	case Zuazo::ColorModel::BT2020:		return AVCOL_SPC_BT2020_CL;
+	case Zuazo::ColorModel::BT2020:		return AVCOL_SPC_BT2020_NCL;
 	case Zuazo::ColorModel::SMPTE240M:	return AVCOL_SPC_SMPTE240M;
 
 	default: 							return AVCOL_SPC_UNSPECIFIED;
@@ -90,8 +90,8 @@ static Zuazo::ColorModel fromFFmpegLUT(AVColorSpace model) {
 	case AVCOL_SPC_SMPTE170M:			return Zuazo::ColorModel::SMPTE240M;	//also ITU-R BT601-6 525 / ITU-R BT1358 525 / ITU-R BT1700 NTSC
 	case AVCOL_SPC_SMPTE240M:			return Zuazo::ColorModel::SMPTE240M;	//functionally identical to above
 	//case AVCOL_SPC_YCGCO:				return {}; /*NOT SUPPORTED*/			//Used by Dirac / VC-2 and H.264 FRext, see ITU-T SG16					
-	//case AVCOL_SPC_BT2020_NCL:		return {}; /*NOT SUPPORTED*/			//ITU-R BT2020 non-constant luminance system
-	case AVCOL_SPC_BT2020_CL:			return Zuazo::ColorModel::BT2020;		//ITU-R BT2020 constant luminance system
+	case AVCOL_SPC_BT2020_NCL:			return Zuazo::ColorModel::BT2020;		//ITU-R BT2020 non-constant luminance system
+	//case AVCOL_SPC_BT2020_CL:			return {}; /*NOT SUPPORTED*/			//ITU-R BT2020 constant luminance system
 	//case AVCOL_SPC_SMPTE2085:			return {}; /*NOT SUPPORTED*/			//SMPTE 2085, Y'D'zD'x
 	//case AVCOL_SPC_CHROMA_DERIVED_NCL:return {}; /*NOT SUPPORTED*/			//Chromaticity-derived non-constant luminance system
 	//case AVCOL_SPC_CHROMA_DERIVED_CL:	return {}; /*NOT SUPPORTED*/			//Chromaticity-derived constant luminance system
