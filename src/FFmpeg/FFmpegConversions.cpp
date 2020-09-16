@@ -168,9 +168,16 @@ Zuazo::ColorTransferFunction fromFFmpeg(ColorTransferCharacteristic func) {
 
 static AVColorRange toFFmpegLUT(Zuazo::ColorRange range) {
 	switch(range) {
-	case Zuazo::ColorRange::FULL:				return AVCOL_RANGE_JPEG;
-	case Zuazo::ColorRange::ITU_NARROW:			return AVCOL_RANGE_MPEG; 
-	default: return AVCOL_RANGE_UNSPECIFIED;
+	case Zuazo::ColorRange::FULL_RGB:
+	case Zuazo::ColorRange::FULL_YCBCR:				
+		return AVCOL_RANGE_JPEG;
+
+	case Zuazo::ColorRange::ITU_NARROW_RGB:
+	case Zuazo::ColorRange::ITU_NARROW_YCBCR:		
+		return AVCOL_RANGE_MPEG;
+	
+	default: 
+		return AVCOL_RANGE_UNSPECIFIED;
 	}
 }
 
@@ -179,16 +186,16 @@ ColorRange toFFmpeg(Zuazo::ColorRange range) {
 }
 
 
-static Zuazo::ColorRange fromFFmpegLUT(AVColorRange range) {
+static Zuazo::ColorRange fromFFmpegLUT(AVColorRange range, bool isYCbCr) {
 	switch(range) {
-	case AVCOL_RANGE_JPEG:	return Zuazo::ColorRange::FULL;
-	case AVCOL_RANGE_MPEG: 	return Zuazo::ColorRange::ITU_NARROW;
+	case AVCOL_RANGE_JPEG:	return isYCbCr ? Zuazo::ColorRange::FULL_YCBCR : Zuazo::ColorRange::FULL_RGB;
+	case AVCOL_RANGE_MPEG: 	return isYCbCr ? Zuazo::ColorRange::ITU_NARROW_YCBCR : Zuazo::ColorRange::ITU_NARROW_RGB;
 	default: 				return Zuazo::ColorRange::NONE;
 	}
 }
 
-Zuazo::ColorRange fromFFmpeg(ColorRange range) {
-	return fromFFmpegLUT(static_cast<AVColorRange>(range));
+Zuazo::ColorRange fromFFmpeg(ColorRange range, bool isYCbCr) {
+	return fromFFmpegLUT(static_cast<AVColorRange>(range), isYCbCr);
 }
 
 

@@ -149,6 +149,7 @@ struct FFmpegUploader::Impl {
 		{	
 			const auto fmtConversion = FFmpeg::fromFFmpeg(fmt);
 			const auto defaultColorModel = fmtConversion.isYCbCr ? ColorModel::BT709 : ColorModel::RGB;
+			const auto defaultColorRange = fmtConversion.isYCbCr ? ColorRange::FULL_YCBCR : ColorRange::FULL_RGB;
 
 			const auto resolution = res;
 			const auto pixelAspectRatio = (par != AspectRatio(0, 1)) ? par : AspectRatio(1, 1);
@@ -156,7 +157,7 @@ struct FFmpegUploader::Impl {
 			const auto colorModel = (space != FFmpeg::ColorSpace::NONE) ? FFmpeg::fromFFmpeg(space) : defaultColorModel;
 			const auto colorTransferFunction = (trc != FFmpeg::ColorTransferCharacteristic::NONE) ? FFmpeg::fromFFmpeg(trc) : ColorTransferFunction::BT709;
 			const auto colorSubsampling = fmtConversion.colorSubsampling;
-			const auto colorRange = (range != FFmpeg::ColorRange::NONE) ? FFmpeg::fromFFmpeg(range) : ColorRange::FULL;
+			const auto colorRange = (range != FFmpeg::ColorRange::NONE) ? FFmpeg::fromFFmpeg(range, fmtConversion.isYCbCr) : defaultColorRange;
 			const auto colorFormat = fmtConversion.colorFormat;
 
 			return VideoMode(
