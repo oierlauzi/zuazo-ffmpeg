@@ -7,6 +7,8 @@
 
 
 #include <zuazo/Instance.h>
+#include <zuazo/Modules/Window.h>
+#include <zuazo/Modules/FFmpeg.h>
 #include <zuazo/Outputs/Window.h>
 #include <zuazo/Inputs/FFmpegClip.h>
 
@@ -19,23 +21,16 @@ int main(int argc, const char** argv) {
 		std::terminate();
 	}
 
-	//Load all the required window components. This *MUST* be done before instantiating Zuazo
-	Zuazo::Outputs::Window::init();
-
-	//Instantiate Zuazo as usual
-	Zuazo::Instance::ApplicationInfo appInfo {
+	//Instantiate Zuazo as usual. Note that FFmpeg module is loaded 
+	Zuazo::Instance::ApplicationInfo appInfo (
 		"FFmpeg Example 00",						//Application's name
 		Zuazo::Version(0, 1, 0),					//Application's version
 		Zuazo::Verbosity::GEQ_INFO,					//Verbosity 
-		Zuazo::VideoMode::ANY,						//Default video-mode
-		Zuazo::Instance::defaultInstanceLogFunc,	//Instance log callback
-		Zuazo::Instance::defaultElementLogFunc		//Element log callback
-	};
+		{ 	Zuazo::Modules::Window::get(), 			//Modules
+			Zuazo::Modules::FFmpeg::get() }
+	);
 	Zuazo::Instance instance(std::move(appInfo));
 	std::unique_lock<Zuazo::Instance> lock(instance);
-
-	//Generaly, you want to enable event polling
-	Zuazo::Outputs::Window::enableRegularEventPolling(instance);
 
 	//Construct the desired video mode
 	const Zuazo::VideoMode videoMode(

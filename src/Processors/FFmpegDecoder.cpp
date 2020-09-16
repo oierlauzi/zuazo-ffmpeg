@@ -93,16 +93,8 @@ struct FFmpegDecoder::Impl {
 		}
 
 		void flush() {
-			const auto frame = framePool.acquire();
-			assert(frame);
-
 			//Empty the packet queue
 			while(packetQueue.size() > 0) packetQueue.pop();
-
-			//Flush the codec itself
-			//codecContext.sendPacket(flushPacket);
-			//while(codecContext.readFrame(*frame) == 0);
-			
 			codecContext.flush();
 		}
 
