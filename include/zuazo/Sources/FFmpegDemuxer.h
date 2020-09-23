@@ -9,11 +9,13 @@
 
 #include <string>
 
-namespace Zuazo::Inputs {
+namespace Zuazo::Sources {
 
 class FFmpegDemuxer
-	: public ZuazoBase
+	: public Utils::Pimpl<struct FFmpegDemuxerImpl>
+	, public ZuazoBase
 {
+	friend FFmpegDemuxerImpl;
 public:
 	using Streams = Utils::BufferView<const FFmpeg::StreamParameters>;
 
@@ -35,9 +37,6 @@ public:
 	bool					seek(int stream, int64_t timestamp, FFmpeg::SeekFlags flags = FFmpeg::SeekFlags::NONE);
 	bool					seek(TimePoint tp, FFmpeg::SeekFlags flags = FFmpeg::SeekFlags::NONE);
 	bool					flush();
-private:
-	struct Impl;
-	Utils::Pimpl<Impl>		m_impl;
 
 };
 

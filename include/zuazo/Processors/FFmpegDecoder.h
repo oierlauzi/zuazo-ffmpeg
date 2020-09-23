@@ -1,7 +1,9 @@
 #pragma once
 
 #include <zuazo/ZuazoBase.h>
+#include <zuazo/Signal/ProcessorLayout.h>
 #include <zuazo/Utils/Pimpl.h>
+#include <zuazo/FFmpeg/Signals.h>
 #include <zuazo/FFmpeg/Enumerations.h>
 #include <zuazo/FFmpeg/CodecParameters.h>
 
@@ -10,8 +12,11 @@
 namespace Zuazo::Processors {
 
 class FFmpegDecoder
-	: public ZuazoBase
+	: public Utils::Pimpl<struct FFmpegDecoderImpl>
+	, public ZuazoBase
+	, public Signal::ProcessorLayout<FFmpeg::PacketStream, FFmpeg::FrameStream>
 {
+	friend FFmpegDecoderImpl;
 public:
 	using DemuxCallback = std::function<void()>;
 
@@ -42,10 +47,6 @@ public:
 
 	void							setDemuxCallback(DemuxCallback cbk);
 	const DemuxCallback&			getDemuxCallback() const;
-
-private:
-	struct Impl;
-	Utils::Pimpl<Impl>		m_impl;
 
 };
 

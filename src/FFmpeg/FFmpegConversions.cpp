@@ -1,5 +1,7 @@
 #include <zuazo/FFmpeg/FFmpegConversions.h>
 
+#include <zuazo/Utils/CPU.h>
+
 extern "C" {
 	#include <libavutil/avutil.h>
 	#include <libavutil/pixfmt.h>
@@ -554,10 +556,10 @@ static PixelFormatConversion fromFFmpegLUT(AVPixelFormat fmt) {
 	//case AV_PIX_FMT_D3D11VA_VLD: 		return {}; /*NOT SUPPORTED*/ 													//HW decoding through Direct3D11 via old API, Picture.data[3] contains a ID3D11VideoDecoderOutputView pointer
 	//case AV_PIX_FMT_CUDA: 			return {}; /*NOT SUPPORTED*/
 
-	case AV_PIX_FMT_0RGB: 				return { ZUAZO_BE_LE(ColorFormat::X8R8G8B8_32, ColorFormat::B8G8R8X8_32), ColorSubsampling::RB_444, false };  //packed RGB 8:8:8, 32bpp, XRGBXRGB...   X=unused/undefined
-	case AV_PIX_FMT_RGB0: 				return { ZUAZO_BE_LE(ColorFormat::R8G8B8X8_32, ColorFormat::X8B8G8R8_32), ColorSubsampling::RB_444, false };  //packed RGB 8:8:8, 32bpp, RGBXRGBX...   X=unused/undefined
-	case AV_PIX_FMT_0BGR: 				return { ZUAZO_BE_LE(ColorFormat::X8B8G8R8_32, ColorFormat::R8G8B8X8_32), ColorSubsampling::RB_444, false };  //packed BGR 8:8:8, 32bpp, XBGRXBGR...   X=unused/undefined
-	case AV_PIX_FMT_BGR0: 				return { ZUAZO_BE_LE(ColorFormat::B8G8R8X8_32, ColorFormat::X8R8G8B8_32), ColorSubsampling::RB_444, false };  //packed BGR 8:8:8, 32bpp, BGRXBGRX...   X=unused/undefined
+	case AV_PIX_FMT_0RGB: 				return { Utils::bele(ColorFormat::X8R8G8B8_32, ColorFormat::B8G8R8X8_32), ColorSubsampling::RB_444, false };  //packed RGB 8:8:8, 32bpp, XRGBXRGB...   X=unused/undefined
+	case AV_PIX_FMT_RGB0: 				return { Utils::bele(ColorFormat::R8G8B8X8_32, ColorFormat::X8B8G8R8_32), ColorSubsampling::RB_444, false };  //packed RGB 8:8:8, 32bpp, RGBXRGBX...   X=unused/undefined
+	case AV_PIX_FMT_0BGR: 				return { Utils::bele(ColorFormat::X8B8G8R8_32, ColorFormat::R8G8B8X8_32), ColorSubsampling::RB_444, false };  //packed BGR 8:8:8, 32bpp, XBGRXBGR...   X=unused/undefined
+	case AV_PIX_FMT_BGR0: 				return { Utils::bele(ColorFormat::B8G8R8X8_32, ColorFormat::X8R8G8B8_32), ColorSubsampling::RB_444, false };  //packed BGR 8:8:8, 32bpp, BGRXBGRX...   X=unused/undefined
 
 	case AV_PIX_FMT_YUV420P12: 			return { ColorFormat::G12X4_B12X4_R12X4_16, ColorSubsampling::RB_420, true };	//planar YUV 4:2:0,18bpp, (1 Cr & Cb sample per 2x2 Y samples)
 	case AV_PIX_FMT_YUV420P14: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_420, true };			//planar YUV 4:2:0,21bpp, (1 Cr & Cb sample per 2x2 Y samples)

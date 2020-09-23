@@ -24,10 +24,10 @@ extern "C" {
 namespace Zuazo::Processors {
 
 /*
- * FFmpegUploader::Impl
+ * FFmpegUploaderImpl
  */
 
-struct FFmpegUploader::Impl {
+struct FFmpegUploaderImpl {
 	struct Open {
 		using FrameCharacteristics = std::tuple<Resolution,
 												AspectRatio,
@@ -48,7 +48,7 @@ struct FFmpegUploader::Impl {
 
 		~Open() = default;
 
-		Zuazo::Video process(FFmpegUploader& ffmpegUploader, const FFmpeg::Video& frame) {
+		Zuazo::Video process(FFmpegUploader& ffmpegUploader, const FFmpeg::FrameStream& frame) {
 			assert(frame);
 
 			//Evaluate if frame characteristics have changed
@@ -181,24 +181,24 @@ struct FFmpegUploader::Impl {
 		}
 	};
 
-	using Input = Signal::Input<FFmpeg::Video>;
+	using Input = Signal::Input<FFmpeg::FrameStream>;
 	using Output = Signal::Output<Zuazo::Video>;
 
-	std::reference_wrapper<FFmpegUploader> owner;
+	Input 									frameIn;
+	Output									videoOut;
 
-	Input 					videoIn;
-	Output					videoOut;
+	std::reference_wrapper<FFmpegUploader> 	owner;
 
-	std::unique_ptr<Open> 	opened;
 
-	Impl(FFmpegUploader& uploader)
-		: owner(uploader)
-		, videoIn(std::string(Signal::makeInputName<FFmpeg::Video>()))
-		, videoOut(std::string(Signal::makeOutputName<Zuazo::Video>()), createPullCallback(uploader))
+	std::unique_ptr<Open> 					opened;
+
+	FFmpegUploaderImpl(FFmpegUploader& uploader)
+		: videoOut(std::string(Signal::makeOutputName<Video>()), createPullCallback(uploader))
+		, owner(uploader)
 	{
 	}
 
-	~Impl() = default;
+	~FFmpegUploaderImpl() = default;
 
 	void moved(ZuazoBase& base) {
 		owner = static_cast<FFmpegUploader&>(base);
@@ -219,14 +219,14 @@ struct FFmpegUploader::Impl {
 	void close(ZuazoBase&) {
 		assert(opened);
 		opened.reset();
-		videoIn.reset();
+		frameIn.reset();
 		videoOut.reset();
 	}
 
 	void update() {
 		if(opened){
-			if(videoIn.hasChanged()) {
-				const auto& frame = videoIn.pull();
+			if(frameIn.hasChanged()) {
+				const auto& frame = frameIn.pull();
 				videoOut.push(frame ? opened->process(owner, frame) : Zuazo::Video());
 			}
 		} 
@@ -252,17 +252,20 @@ private:
  */
 
 FFmpegUploader::FFmpegUploader(Instance& instance, std::string name, VideoMode videoMode)
-	: ZuazoBase(instance, std::move(name))
-	, VideoBase(std::move(videoMode))
-	, m_impl({}, *this)
+	: Utils::Pimpl<FFmpegUploaderImpl>({}, *this)
+	, ZuazoBase(
+		instance, 
+		std::move(name),
+		{ (*this)->frameIn, (*this)->videoOut },
+		std::bind(&FFmpegUploaderImpl::moved, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegUploaderImpl::open, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegUploaderImpl::close, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegUploaderImpl::update, std::ref(**this)) )
+	, VideoBase(
+		std::move(videoMode),
+		std::bind(&FFmpegUploaderImpl::videoModeCallabck, std::ref(**this), std::placeholders::_1, std::placeholders::_2) )
+	, Signal::ProcessorLayout<FFmpeg::FrameStream, Video>(makeProxy((*this)->frameIn), makeProxy((*this)->videoOut))
 {
-	setMoveCallback(std::bind(&Impl::moved, std::ref(*m_impl), std::placeholders::_1));
-	setOpenCallback(std::bind(&Impl::open, std::ref(*m_impl), std::placeholders::_1));
-	setCloseCallback(std::bind(&Impl::close, std::ref(*m_impl), std::placeholders::_1));
-	setUpdateCallback(std::bind(&Impl::update, std::ref(*m_impl)));
-	setVideoModeCallback(std::bind(&Impl::videoModeCallabck, std::ref(*m_impl), std::placeholders::_1, std::placeholders::_2));
-
-	registerPads( {m_impl->videoIn, m_impl->videoOut} );
 }
 
 FFmpegUploader::FFmpegUploader(FFmpegUploader&& other) = default;

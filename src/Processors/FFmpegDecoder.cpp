@@ -17,10 +17,10 @@
 namespace Zuazo::Processors {
 
 /*
- * FFmpegDecoder::Impl
+ * FFmpegDecoderImpl
  */
 
-struct FFmpegDecoder::Impl {
+struct FFmpegDecoderImpl {
 	struct Open {
 		using PacketQueue = std::queue<FFmpeg::PacketStream>;
 		using FramePool = Utils::Pool<FFmpeg::Frame>;
@@ -60,7 +60,7 @@ struct FFmpegDecoder::Impl {
 			packetQueue.push(pkt);
 		}
 
-		FFmpeg::Video decode(const DemuxCallback& demuxCbk) {
+		FFmpeg::FrameStream decode(const FFmpegDecoder::DemuxCallback& demuxCbk) {
 			auto frame = framePool.acquire();
 			assert(frame);
 
@@ -85,7 +85,7 @@ struct FFmpegDecoder::Impl {
 
 				default:
 					//Unknown error
-					return FFmpeg::Video();
+					return FFmpeg::FrameStream();
 				}
 			}
 
@@ -107,30 +107,28 @@ struct FFmpegDecoder::Impl {
 	};
 
 	using Input = Signal::Input<FFmpeg::PacketStream>;
-	using Output = Signal::Output<FFmpeg::Video>;
+	using Output = Signal::Output<FFmpeg::FrameStream>;
 
-	FFmpeg::CodecParameters	codecParameters;
-	int						threadCount;
-	FFmpeg::ThreadType		threadType;
+	Input 							packetIn;
+	Output							frameOut;
 
-	DemuxCallback			demuxCallback;
+	FFmpeg::CodecParameters			codecParameters;
+	int								threadCount;
+	FFmpeg::ThreadType				threadType;
 
-	Input 					packetIn;
-	Output					videoOut;
+	FFmpegDecoder::DemuxCallback	demuxCallback;
 
-	std::unique_ptr<Open> 	opened;
+	std::unique_ptr<Open> 			opened;
 
-	Impl(FFmpeg::CodecParameters codecPar, DemuxCallback demuxCbk) 
+	FFmpegDecoderImpl(FFmpeg::CodecParameters codecPar, FFmpegDecoder::DemuxCallback demuxCbk) 
 		: codecParameters(std::move(codecPar))
 		, threadCount(1)
 		, threadType(FFmpeg::ThreadType::NONE)
 		, demuxCallback(std::move(demuxCbk))
-		, packetIn(std::string(Signal::makeInputName<FFmpeg::PacketStream>()))
-		, videoOut(std::string(Signal::makeOutputName<FFmpeg::Video>()))
 	{
 	}
 
-	~Impl() = default;
+	~FFmpegDecoderImpl() = default;
 
 
 	void open(ZuazoBase&) {
@@ -140,7 +138,7 @@ struct FFmpegDecoder::Impl {
 	void close(ZuazoBase&) {
 		opened.reset();
 		packetIn.reset();
-		videoOut.reset();
+		frameOut.reset();
 	}
 
 	void update() {
@@ -154,7 +152,7 @@ struct FFmpegDecoder::Impl {
 			auto result = opened->decode(demuxCallback);
 
 			if(result) {
-				videoOut.push(std::move(result));
+				frameOut.push(std::move(result));
 				return true;
 			}
 		}
@@ -164,7 +162,7 @@ struct FFmpegDecoder::Impl {
 
 	void flush() {
 		if(opened) opened->flush();
-		videoOut.reset();
+		frameOut.reset();
 	}
 
 
@@ -199,11 +197,11 @@ struct FFmpegDecoder::Impl {
 	}
 
 
-	void setDemuxCallback(DemuxCallback cbk) {
+	void setDemuxCallback(FFmpegDecoder::DemuxCallback cbk) {
 		demuxCallback = std::move(cbk);
 	}
 
-	const DemuxCallback& getDemuxCallback() const {
+	const FFmpegDecoder::DemuxCallback& getDemuxCallback() const {
 		return demuxCallback;
 	}
 
@@ -219,14 +217,17 @@ FFmpegDecoder::FFmpegDecoder(	Instance& instance,
 								std::string name, 
 								FFmpeg::CodecParameters codecPar,
 								DemuxCallback demuxCbk )
-	: ZuazoBase(instance, std::move(name))
-	, m_impl({}, std::move(codecPar), std::move(demuxCbk))
+	: Utils::Pimpl<FFmpegDecoderImpl>({}, std::move(codecPar), std::move(demuxCbk))
+	, ZuazoBase(
+		instance, 
+		std::move(name),
+		{ (*this)->packetIn, (*this)->frameOut },
+		ZuazoBase::MoveCallback(),
+		std::bind(&FFmpegDecoderImpl::open, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegDecoderImpl::close, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegDecoderImpl::update, std::ref(**this)) )
+	, Signal::ProcessorLayout<FFmpeg::PacketStream, FFmpeg::FrameStream>(makeProxy((*this)->packetIn), makeProxy((*this)->frameOut))
 {
-	setOpenCallback(std::bind(&Impl::open, std::ref(*m_impl), std::placeholders::_1));
-	setCloseCallback(std::bind(&Impl::close, std::ref(*m_impl), std::placeholders::_1));
-	setUpdateCallback(std::bind(&Impl::update, std::ref(*m_impl)));
-
-	registerPads( { m_impl->packetIn, m_impl->videoOut } );
 }
 
 FFmpegDecoder::FFmpegDecoder(FFmpegDecoder&& other) = default;
@@ -238,47 +239,47 @@ FFmpegDecoder& FFmpegDecoder::operator=(FFmpegDecoder&& other) = default;
 
 
 bool FFmpegDecoder::decode() {
-	return m_impl->decode();
+	return (*this)->decode();
 }
 
 void FFmpegDecoder::flush() {
-	m_impl->flush();
+	(*this)->flush();
 }
 
 
 void FFmpegDecoder::setCodecParameters(FFmpeg::CodecParameters codecPar) {
-	m_impl->setCodecParameters(std::move(codecPar));
+	(*this)->setCodecParameters(std::move(codecPar));
 }
 
 const FFmpeg::CodecParameters& FFmpegDecoder::getCodecParameters() const {
-	return m_impl->getCodecParameters();
+	return (*this)->getCodecParameters();
 }
 
 
 void FFmpegDecoder::setThreadCount(int cnt) {
-	m_impl->setThreadCount(cnt);
+	(*this)->setThreadCount(cnt);
 }
 
 int FFmpegDecoder::getThreadCount() const {
-	return m_impl->getThreadCount();
+	return (*this)->getThreadCount();
 }	
 
 
 void FFmpegDecoder::setThreadType(FFmpeg::ThreadType type) {
-	m_impl->setThreadType(type);
+	(*this)->setThreadType(type);
 }
 
 FFmpeg::ThreadType FFmpegDecoder::getThreadType() const {
-	return m_impl->getThreadType();
+	return (*this)->getThreadType();
 }
 
 
 void FFmpegDecoder::setDemuxCallback(DemuxCallback cbk) {
-	m_impl->setDemuxCallback(std::move(cbk));
+	(*this)->setDemuxCallback(std::move(cbk));
 }
 
 const FFmpegDecoder::DemuxCallback& FFmpegDecoder::getDemuxCallback() const {
-	return m_impl->getDemuxCallback();
+	return (*this)->getDemuxCallback();
 }
 
 }

@@ -6,15 +6,19 @@
 #include <zuazo/ZuazoBase.h>
 #include <zuazo/Video.h>
 #include <zuazo/ClipBase.h>
+#include <zuazo/Signal/SourceLayout.h>
 #include <zuazo/Utils/Pimpl.h>
 
-namespace Zuazo::Inputs {
+namespace Zuazo::Sources {
 
 class FFmpegClip
-	: public ZuazoBase
+	: public Utils::Pimpl<struct FFmpegClipImpl>
+	, public ZuazoBase
 	, public VideoBase
 	, public ClipBase
+	, public Signal::SourceLayout<Video>
 {
+	friend FFmpegClipImpl;
 public:
 	FFmpegClip(	Instance& instance, 
 			std::string name, 
@@ -28,9 +32,6 @@ public:
 	FFmpegClip& 			operator=(const FFmpegClip& other) = delete;
 	FFmpegClip& 			operator=(FFmpegClip&& other);
 
-private:
-	struct Impl;
-	Utils::Pimpl<Impl>		m_impl;
 };
 	
 }

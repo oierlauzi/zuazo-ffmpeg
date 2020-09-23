@@ -9,8 +9,8 @@
 #include <zuazo/Instance.h>
 #include <zuazo/Modules/Window.h>
 #include <zuazo/Modules/FFmpeg.h>
-#include <zuazo/Outputs/Window.h>
-#include <zuazo/Inputs/FFmpegClip.h>
+#include <zuazo/Consumers/Window.h>
+#include <zuazo/Sources/FFmpegClip.h>
 
 #include <mutex>
 #include <iostream>
@@ -46,12 +46,12 @@ int main(int argc, const char** argv) {
 	);
 
 	//Construct the window object
-	Zuazo::Outputs::Window window(
+	Zuazo::Consumers::Window window(
 		instance, 						//Instance
 		"Output Window",				//Layout name
 		videoMode,						//Video mode limits
 		Zuazo::Math::Vec2i(1280, 720),	//Window size (in screen coordinates)
-		Zuazo::Outputs::Window::NO_MONITOR //No monitor
+		Zuazo::Consumers::Window::NO_MONITOR //No monitor
 	);
 
 	//Open the window (now becomes visible)
@@ -59,7 +59,7 @@ int main(int argc, const char** argv) {
 
 
 
-	Zuazo::Inputs::FFmpegClip videoClip(instance, "Video Clip", Zuazo::VideoMode::ANY, std::string(argv[1]));
+	Zuazo::Sources::FFmpegClip videoClip(instance, "Video Clip", Zuazo::VideoMode::ANY, std::string(argv[1]));
 	videoClip.open();
 	videoClip.setRepeat(Zuazo::ClipBase::Repeat::REPEAT);
 	videoClip.play();

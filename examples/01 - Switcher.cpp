@@ -9,8 +9,8 @@
 #include <zuazo/Instance.h>
 #include <zuazo/Modules/Window.h>
 #include <zuazo/Modules/FFmpeg.h>
-#include <zuazo/Outputs/Window.h>
-#include <zuazo/Inputs/FFmpegClip.h>
+#include <zuazo/Consumers/Window.h>
+#include <zuazo/Sources/FFmpegClip.h>
 
 #include <mutex>
 #include <iostream>
@@ -58,29 +58,29 @@ int main(int argc, const char** argv) {
 
 
 	//Construct the window objects
-	Zuazo::Outputs::Window pgmWindow(
+	Zuazo::Consumers::Window pgmWindow(
 		instance, 						//Instance
 		"Program Output Window",		//Layout name
 		videoMode,						//Video mode limits
 		Zuazo::Math::Vec2i(1280, 720),	//Window size (in screen coordinates)
-		Zuazo::Outputs::Window::NO_MONITOR //No monitor
+		Zuazo::Consumers::Window::NO_MONITOR //No monitor
 	);
 	pgmWindow.setWindowName("Program"); //The actual displayed name
 	pgmWindow.setScalingMode(Zuazo::ScalingMode::BOXED);
 
-	Zuazo::Outputs::Window pvwWindow(
+	Zuazo::Consumers::Window pvwWindow(
 		instance, 						//Instance
 		"Preview Output Window",		//Layout name
 		videoMode,						//Video mode limits
 		Zuazo::Math::Vec2i(1280, 720),	//Window size (in screen coordinates)
-		Zuazo::Outputs::Window::NO_MONITOR //No monitor
+		Zuazo::Consumers::Window::NO_MONITOR //No monitor
 	);
 	pvwWindow.setWindowName("Preview");
 	pvwWindow.setScalingMode(Zuazo::ScalingMode::BOXED);
 
 
 	//Create a FFmpegClip object array
-	std::vector<Zuazo::Inputs::FFmpegClip> clips;
+	std::vector<Zuazo::Sources::FFmpegClip> clips;
 	clips.reserve(argc - 1);
 	for(size_t i = 1; i < static_cast<size_t>(argc); i++) {
 		clips.emplace_back(
@@ -93,32 +93,32 @@ int main(int argc, const char** argv) {
 
 
 	//Configure the callbacks
-	const auto keyCallback = [&pgmWindow, &pvwWindow, &clips] (	Zuazo::Outputs::Window&, 
-																Zuazo::Outputs::Window::KeyboardKey key, 
-																Zuazo::Outputs::Window::KeyboardEvent event, 
-																Zuazo::Outputs::Window::KeyboardModifiers)
+	const auto keyCallback = [&pgmWindow, &pvwWindow, &clips] (	Zuazo::Consumers::Window&, 
+																Zuazo::Consumers::Window::KeyboardKey key, 
+																Zuazo::Consumers::Window::KeyboardEvent event, 
+																Zuazo::Consumers::Window::KeyboardModifiers)
 	{
-		if(event == Zuazo::Outputs::Window::KeyboardEvent::PRESS) {
+		if(event == Zuazo::Consumers::Window::KeyboardEvent::PRESS) {
 			//We only care for presses
 			switch(key) {
-			case Zuazo::Outputs::Window::KeyboardKey::ENTER:
+			case Zuazo::Consumers::Window::KeyboardKey::ENTER:
 				//Cut
 				cut(Zuazo::Signal::getInput<Zuazo::Video>(pgmWindow), Zuazo::Signal::getInput<Zuazo::Video>(pvwWindow));
 				break;
 
-			case Zuazo::Outputs::Window::KeyboardKey::F1:
-			case Zuazo::Outputs::Window::KeyboardKey::F2:
-			case Zuazo::Outputs::Window::KeyboardKey::F3:
-			case Zuazo::Outputs::Window::KeyboardKey::F4:
-			case Zuazo::Outputs::Window::KeyboardKey::F5:
-			case Zuazo::Outputs::Window::KeyboardKey::F6:
-			case Zuazo::Outputs::Window::KeyboardKey::F7:
-			case Zuazo::Outputs::Window::KeyboardKey::F8:
-			case Zuazo::Outputs::Window::KeyboardKey::F9:
-			case Zuazo::Outputs::Window::KeyboardKey::F10:
+			case Zuazo::Consumers::Window::KeyboardKey::F1:
+			case Zuazo::Consumers::Window::KeyboardKey::F2:
+			case Zuazo::Consumers::Window::KeyboardKey::F3:
+			case Zuazo::Consumers::Window::KeyboardKey::F4:
+			case Zuazo::Consumers::Window::KeyboardKey::F5:
+			case Zuazo::Consumers::Window::KeyboardKey::F6:
+			case Zuazo::Consumers::Window::KeyboardKey::F7:
+			case Zuazo::Consumers::Window::KeyboardKey::F8:
+			case Zuazo::Consumers::Window::KeyboardKey::F9:
+			case Zuazo::Consumers::Window::KeyboardKey::F10:
 				//Switch program
 				{
-					const auto index = static_cast<int>(key) - static_cast<int>(Zuazo::Outputs::Window::KeyboardKey::F1);
+					const auto index = static_cast<int>(key) - static_cast<int>(Zuazo::Consumers::Window::KeyboardKey::F1);
 					if(Zuazo::Math::isInRange(index, 0, static_cast<int>(clips.size() - 1))) {
 						Zuazo::Signal::getInput<Zuazo::Video>(pgmWindow) << Zuazo::Signal::getOutput<Zuazo::Video>(clips[index]);
 					} else {
@@ -128,19 +128,19 @@ int main(int argc, const char** argv) {
 				break;
 
 
-			case Zuazo::Outputs::Window::KeyboardKey::NB0:
-			case Zuazo::Outputs::Window::KeyboardKey::NB1:
-			case Zuazo::Outputs::Window::KeyboardKey::NB2:
-			case Zuazo::Outputs::Window::KeyboardKey::NB3:
-			case Zuazo::Outputs::Window::KeyboardKey::NB4:
-			case Zuazo::Outputs::Window::KeyboardKey::NB5:
-			case Zuazo::Outputs::Window::KeyboardKey::NB6:
-			case Zuazo::Outputs::Window::KeyboardKey::NB7:
-			case Zuazo::Outputs::Window::KeyboardKey::NB8:
-			case Zuazo::Outputs::Window::KeyboardKey::NB9:
+			case Zuazo::Consumers::Window::KeyboardKey::NB0:
+			case Zuazo::Consumers::Window::KeyboardKey::NB1:
+			case Zuazo::Consumers::Window::KeyboardKey::NB2:
+			case Zuazo::Consumers::Window::KeyboardKey::NB3:
+			case Zuazo::Consumers::Window::KeyboardKey::NB4:
+			case Zuazo::Consumers::Window::KeyboardKey::NB5:
+			case Zuazo::Consumers::Window::KeyboardKey::NB6:
+			case Zuazo::Consumers::Window::KeyboardKey::NB7:
+			case Zuazo::Consumers::Window::KeyboardKey::NB8:
+			case Zuazo::Consumers::Window::KeyboardKey::NB9:
 				//Switch preview
 				{
-					const auto index = static_cast<int>(key) - static_cast<int>(Zuazo::Outputs::Window::KeyboardKey::NB1);
+					const auto index = static_cast<int>(key) - static_cast<int>(Zuazo::Consumers::Window::KeyboardKey::NB1);
 					if(Zuazo::Math::isInRange(index, 0, static_cast<int>(clips.size() - 1))) {
 						Zuazo::Signal::getInput<Zuazo::Video>(pvwWindow) << Zuazo::Signal::getOutput<Zuazo::Video>(clips[index]);
 					} else {

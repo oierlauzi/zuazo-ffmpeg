@@ -11,7 +11,7 @@
 namespace Zuazo::FFmpeg {
 
 using PacketStream = std::shared_ptr<const FFmpeg::Packet>;
-using Video = std::shared_ptr<const FFmpeg::Frame>;
+using FrameStream = std::shared_ptr<const FFmpeg::Frame>;
 
 }
 
@@ -25,9 +25,9 @@ constexpr std::string_view makeOutputName<FFmpeg::PacketStream>() { return "pack
 
 
 template<>
-constexpr std::string_view makeInputName<FFmpeg::Video>() { return "videoIn"; }
+constexpr std::string_view makeInputName<FFmpeg::FrameStream>() { return "frameIn"; }
 
 template<>
-constexpr std::string_view makeOutputName<FFmpeg::Video>() { return "videoOut"; }
+constexpr std::string_view makeOutputName<FFmpeg::FrameStream>() { return "frameOut"; }
 
 }

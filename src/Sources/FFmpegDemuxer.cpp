@@ -1,4 +1,4 @@
-#include <zuazo/Inputs/FFmpegDemuxer.h>
+#include <zuazo/Sources/FFmpegDemuxer.h>
 
 #include "../FFmpeg/InputFormatContext.h"
 
@@ -19,13 +19,13 @@ extern "C" {
 }
 
 
-namespace Zuazo::Inputs {
+namespace Zuazo::Sources {
 
 /*
- * FFmpegDemuxer::Impl
+ * FFmpegDemuxerImpl
  */
 
-struct FFmpegDemuxer::Impl {
+struct FFmpegDemuxerImpl {
 	struct Open {
 
 		using PacketPool = Utils::Pool<FFmpeg::Packet>;
@@ -91,12 +91,12 @@ struct FFmpegDemuxer::Impl {
 	std::string 			url;
 	std::unique_ptr<Open> 	opened;
 
-	Impl(std::string url) 
+	FFmpegDemuxerImpl(std::string url) 
 		: url(std::move(url))
 	{
 	}
 
-	~Impl() = default;
+	~FFmpegDemuxerImpl() = default;
 
 
 	void open(ZuazoBase& base) {
@@ -127,10 +127,10 @@ struct FFmpegDemuxer::Impl {
 
 
 
-	Streams getStreams() const {
+	FFmpegDemuxer::Streams getStreams() const {
 		return opened
 		? opened->formatContext.getStreams()
-		: Streams();
+		: FFmpegDemuxer::Streams();
 	}
 
 	int findBestStream(FFmpeg::MediaType type) const {
@@ -179,12 +179,16 @@ struct FFmpegDemuxer::Impl {
  */
 
 FFmpegDemuxer::FFmpegDemuxer(Instance& instance, std::string name, std::string url)
-	: ZuazoBase(instance, std::move(name))
-	, m_impl({}, std::move(url))
+	: Utils::Pimpl<FFmpegDemuxerImpl>({}, std::move(url))
+	, ZuazoBase(
+		instance, 
+		std::move(name),
+		{},
+		ZuazoBase::MoveCallback(),
+		std::bind(&FFmpegDemuxerImpl::open, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegDemuxerImpl::close, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegDemuxerImpl::update, std::ref(**this)) )
 {
-	setOpenCallback(std::bind(&Impl::open, std::ref(*m_impl), std::placeholders::_1));
-	setCloseCallback(std::bind(&Impl::close, std::ref(*m_impl), std::placeholders::_1));
-	setUpdateCallback(std::bind(&Impl::update, std::ref(*m_impl)));
 }
 
 FFmpegDemuxer::FFmpegDemuxer(FFmpegDemuxer&& other) = default;
@@ -196,32 +200,32 @@ FFmpegDemuxer& FFmpegDemuxer::operator=(FFmpegDemuxer&& other) = default;
 
 
 FFmpegDemuxer::Streams FFmpegDemuxer::getStreams() const {
-	return m_impl->getStreams();
+	return (*this)->getStreams();
 }
 
 int FFmpegDemuxer::findBestStream(FFmpeg::MediaType type) const {
-	return m_impl->findBestStream(type);
+	return (*this)->findBestStream(type);
 }
 
 int FFmpegDemuxer::getLastStreamIndex() const {
-	return m_impl->getLastStreamIndex();
+	return (*this)->getLastStreamIndex();
 }
 
 Duration FFmpegDemuxer::getDuration() const {
-	return m_impl->getDuration();
+	return (*this)->getDuration();
 }
 
 
 bool FFmpegDemuxer::seek(int stream, int64_t timestamp, FFmpeg::SeekFlags flags) {
-	return m_impl->seek(stream, timestamp, flags);
+	return (*this)->seek(stream, timestamp, flags);
 }
 
 bool FFmpegDemuxer::seek(TimePoint tp, FFmpeg::SeekFlags flags) {
-	return m_impl->seek(tp, flags);
+	return (*this)->seek(tp, flags);
 }
 
 bool FFmpegDemuxer::flush() {
-	return m_impl->flush();
+	return (*this)->flush();
 }
 
 
