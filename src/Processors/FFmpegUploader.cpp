@@ -149,7 +149,7 @@ struct FFmpegUploaderImpl {
 		{	
 			const auto fmtConversion = FFmpeg::fromFFmpeg(fmt);
 			const auto defaultColorModel = fmtConversion.isYCbCr ? ColorModel::BT709 : ColorModel::RGB;
-			const auto defaultColorRange = fmtConversion.isYCbCr ? ColorRange::FULL_YCBCR : ColorRange::FULL_RGB;
+			const auto defaultColorRange = fmtConversion.isYCbCr ? ColorRange::ITU_NARROW_YCBCR : ColorRange::FULL_RGB;
 
 			const auto resolution = res;
 			const auto pixelAspectRatio = (par != AspectRatio(0, 1)) ? par : AspectRatio(1, 1);
