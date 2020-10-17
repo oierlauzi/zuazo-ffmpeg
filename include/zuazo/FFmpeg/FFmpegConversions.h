@@ -24,7 +24,7 @@ ColorTransferCharacteristic toFFmpeg(Zuazo::ColorTransferFunction func);
 Zuazo::ColorTransferFunction fromFFmpeg(ColorTransferCharacteristic func);
 
 ColorRange toFFmpeg(Zuazo::ColorRange range);
-Zuazo::ColorRange fromFFmpeg(ColorRange range, bool isYCbCr);
+Zuazo::ColorRange fromFFmpeg(ColorRange range);
 
 struct PixelFormatConversion {
 	ColorFormat colorFormat;

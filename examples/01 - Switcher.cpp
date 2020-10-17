@@ -44,18 +44,7 @@ int main(int argc, const char** argv) {
 	std::unique_lock<Zuazo::Instance> lock(instance);
 
 	//Construct the desired video mode
-	const Zuazo::VideoMode videoMode(
-		Zuazo::Utils::MustBe<Zuazo::Rate>(Zuazo::Rate(60, 1)), //Just specify the desired rate
-		Zuazo::Utils::Any<Zuazo::Resolution>(),
-		Zuazo::Utils::Any<Zuazo::AspectRatio>(),
-		Zuazo::Utils::Any<Zuazo::ColorPrimaries>(),
-		Zuazo::Utils::Any<Zuazo::ColorModel>(),
-		Zuazo::Utils::Any<Zuazo::ColorTransferFunction>(),
-		Zuazo::Utils::Any<Zuazo::ColorSubsampling>(),
-		Zuazo::Utils::Any<Zuazo::ColorRange>(),
-		Zuazo::Utils::Any<Zuazo::ColorFormat>()	
-	);
-
+	const Zuazo::VideoMode videoMode = Zuazo::makeVideoMode(Zuazo::Rate(60, 1)); //Just specify the desired rate
 
 	//Construct the window objects
 	Zuazo::Consumers::Window pgmWindow(

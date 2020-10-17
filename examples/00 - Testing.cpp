@@ -33,17 +33,7 @@ int main(int argc, const char** argv) {
 	std::unique_lock<Zuazo::Instance> lock(instance);
 
 	//Construct the desired video mode
-	const Zuazo::VideoMode videoMode(
-		Zuazo::Utils::MustBe<Zuazo::Rate>(Zuazo::Rate(25, 1)), //Just specify the desired rate
-		Zuazo::Utils::Any<Zuazo::Resolution>(),
-		Zuazo::Utils::Any<Zuazo::AspectRatio>(),
-		Zuazo::Utils::Any<Zuazo::ColorPrimaries>(),
-		Zuazo::Utils::Any<Zuazo::ColorModel>(),
-		Zuazo::Utils::Any<Zuazo::ColorTransferFunction>(),
-		Zuazo::Utils::Any<Zuazo::ColorSubsampling>(),
-		Zuazo::Utils::Any<Zuazo::ColorRange>(),
-		Zuazo::Utils::Any<Zuazo::ColorFormat>()	
-	);
+	const Zuazo::VideoMode videoMode = Zuazo::makeVideoMode(Zuazo::Rate(60, 1)); //Just specify the desired rate
 
 	//Construct the window object
 	Zuazo::Consumers::Window window(
@@ -71,15 +61,7 @@ int main(int argc, const char** argv) {
 	getchar();
 	lock.lock();
 
-
-	std::cout 	<< videoClip.getVideoModeCompatibility()[0].getFrameRate() << ", "
-				<< videoClip.getVideoModeCompatibility()[0].getResolution() << ", "
-				<< videoClip.getVideoModeCompatibility()[0].getPixelAspectRatio() << ", "
-				<< videoClip.getVideoModeCompatibility()[0].getColorModel() << ", "
-				<< videoClip.getVideoModeCompatibility()[0].getColorPrimaries() << ", "
-				<< videoClip.getVideoModeCompatibility()[0].getColorTransferFunction() << ", "
-				<< videoClip.getVideoModeCompatibility()[0].getColorRange() << ", "
-				<< videoClip.getVideoModeCompatibility()[0].getColorSubsampling() << ", "
-				<< videoClip.getVideoModeCompatibility()[0].getColorFormat() << std::endl;
+	//Video-mode
+	std::cout << "Current video-mode: " << videoClip.getVideoMode() << std::endl;
 
 }
