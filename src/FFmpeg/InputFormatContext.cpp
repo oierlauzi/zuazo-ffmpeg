@@ -60,8 +60,8 @@ int InputFormatContext::findBestStream(MediaType type) const {
 	);
 }
 
-int64_t InputFormatContext::getDuration() const {
-	return get().duration;
+Duration InputFormatContext::getDuration() const {
+	return Duration(get().duration);
 }
 
 
@@ -82,8 +82,8 @@ int InputFormatContext::seek(int stream, int64_t timestamp, SeekFlags flags) {
 	);
 }
 
-int InputFormatContext::seek(int64_t timestamp, SeekFlags flags) {
-	return seek(-1, timestamp, flags);
+int InputFormatContext::seek(Duration timestamp, SeekFlags flags) {	
+	return seek(-1, timestamp.count(), flags);
 }
 
 

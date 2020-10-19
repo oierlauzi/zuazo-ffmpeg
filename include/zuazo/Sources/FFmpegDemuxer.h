@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../FFmpeg/Enumerations.h"
+#include "../FFmpeg/Chrono.h"
 #include "../FFmpeg/StreamParameters.h"
 
 #include <zuazo/ZuazoBase.h>
@@ -32,10 +33,10 @@ public:
 	Streams					getStreams() const;
 	int						findBestStream(FFmpeg::MediaType type) const;
 	int						getLastStreamIndex() const;
-	Duration 				getDuration() const;
+	FFmpeg::Duration		getDuration() const;
 
 	bool					seek(int stream, int64_t timestamp, FFmpeg::SeekFlags flags = FFmpeg::SeekFlags::NONE);
-	bool					seek(TimePoint tp, FFmpeg::SeekFlags flags = FFmpeg::SeekFlags::NONE);
+	bool					seek(FFmpeg::Duration timestamp, FFmpeg::SeekFlags flags = FFmpeg::SeekFlags::NONE);
 	bool					flush();
 
 };

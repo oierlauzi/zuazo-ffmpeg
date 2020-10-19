@@ -3,10 +3,12 @@
 #include <zuazo/FFmpeg/Packet.h>
 #include <zuazo/FFmpeg/StreamParameters.h>
 #include <zuazo/FFmpeg/Enumerations.h>
+#include <zuazo/FFmpeg/Chrono.h>
 
 #include <zuazo/Utils/BufferView.h>
 
 #include <cstddef>
+#include <chrono>
 
 struct AVFormatContext;
 
@@ -36,12 +38,12 @@ public:
 	Streams 							getStreams() const;
 	int									findBestStream(MediaType type) const;
 	
-	int64_t								getDuration() const;
+	Duration							getDuration() const;
 
 	int									play();
 	int									pause();
 	int									seek(int stream, int64_t timestamp, SeekFlags flags = SeekFlags::NONE);
-	int									seek(int64_t timestamp, SeekFlags flags = SeekFlags::NONE);
+	int									seek(Duration timestamp, SeekFlags flags = SeekFlags::NONE);
 	int									readPacket(Packet& pkt);
 	int									flush();
 

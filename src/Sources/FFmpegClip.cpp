@@ -245,9 +245,12 @@ struct FFmpegClipImpl {
 		//Route the decoder signal
 		videoUploader << opened->videoDecoder;
 
-		clip.setDuration(demuxer.getDuration() != Duration() ? demuxer.getDuration() : Duration::max());
+		clip.setDuration(
+			demuxer.getDuration() != FFmpeg::Duration() 
+			? std::chrono::duration_cast<Duration>(demuxer.getDuration()) 
+			: Duration::max()
+		);
 		clip.setTimeStep(getPeriod(opened->getFrameRate()));
-		clip.setTime(clip.getTime()); //Ensure time point is within limits
 		clip.enableRegularUpdate(Instance::INPUT_PRIORITY);
 
 		refresh(clip); //Ensure that the first frame has been decoded
@@ -286,7 +289,10 @@ struct FFmpegClipImpl {
 
 			if(delta < -framePeriod || delta > framePeriod * MAX_UNSKIPPED_FRAMES) {
 				//Time has gone back!
-				demuxer.seek(targetTimeStamp, FFmpeg::SeekFlags::BACKWARD);
+				demuxer.seek(
+					std::chrono::duration_cast<FFmpeg::Duration>(targetTimeStamp.time_since_epoch()), 
+					FFmpeg::SeekFlags::BACKWARD
+				);
 				opened->flush();
 			}
 
@@ -298,7 +304,10 @@ struct FFmpegClipImpl {
 		}
 	}
 
-	void videoModeCallback(VideoBase&, const VideoMode& videoMode) {
+	void videoModeCallback(VideoBase& base, const VideoMode& videoMode) {
+		auto& clip = static_cast<FFmpegClip&>(base);
+		assert(&owner.get() == &clip);
+
 		videoUploader.setVideoModeLimits(videoMode);
 	}
 
