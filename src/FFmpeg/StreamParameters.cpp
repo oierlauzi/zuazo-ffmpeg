@@ -149,7 +149,7 @@ Math::Rational<int> StreamParameters::getRealFrameRate() const {
 
 
 void StreamParameters::setCodecParameters(const CodecParameters& codecPar) {
-	assert(codecPar.operator ConstHandle());
+	assert(static_cast<CodecParameters::ConstHandle>(codecPar));
 	assert(get().codecpar);
 
 	avcodec_parameters_copy(get().codecpar, codecPar);
