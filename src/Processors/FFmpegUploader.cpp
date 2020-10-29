@@ -1,7 +1,7 @@
 #include <zuazo/Processors/FFmpegUploader.h>
 
 #include <zuazo/Utils/Functions.h>
-#include <zuazo/Math/Functions.h>
+#include <zuazo/Math/Comparisons.h>
 #include <zuazo/Utils/Pool.h>
 #include <zuazo/Signal/Input.h>
 #include <zuazo/Signal/Output.h>
