@@ -1,7 +1,7 @@
 #pragma once
 
 #include <zuazo/Macros.h>
-#include <zuazo/Utils/Functions.h>
+#include <zuazo/Utils/Bit.h>
 
 #include <string_view>
 
