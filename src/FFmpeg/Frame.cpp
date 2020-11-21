@@ -252,6 +252,23 @@ uint64_t Frame::getChannelLayout() const {
 }
 
 
+Utils::BufferView<FrameSideData> Frame::getSideData() {
+	static_assert(sizeof(AVFrameSideData*) == sizeof(FrameSideData), "Pointer size and side data size must match");
+	return Utils::BufferView<FrameSideData>(
+		reinterpret_cast<FrameSideData*>(get().side_data),
+		static_cast<size_t>(get().nb_side_data)
+	);
+}
+
+Utils::BufferView<const FrameSideData> Frame::getSideData() const {
+	static_assert(sizeof(const AVFrameSideData*) == sizeof(FrameSideData), "Pointer size and side data size must match");
+	return Utils::BufferView<const FrameSideData>(
+		reinterpret_cast<FrameSideData*>(get().side_data),
+		static_cast<size_t>(get().nb_side_data)
+	);
+}
+
+
 void Frame::setColorRange(ColorRange range) {
 	get().color_range = static_cast<AVColorRange>(range);
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Enumerations.h"
+#include "FrameSideData.h"
 
 #include <zuazo/Resolution.h>
 #include <zuazo/Utils/BufferView.h>
@@ -89,6 +90,9 @@ public:
 
 	void										setChannelLayout(uint64_t layout);
 	uint64_t									getChannelLayout() const;
+
+	Utils::BufferView<FrameSideData>			getSideData();
+	Utils::BufferView<const FrameSideData>		getSideData() const;
 
 	void										setColorRange(ColorRange range);
 	ColorRange              					getColorRange() const;

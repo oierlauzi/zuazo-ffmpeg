@@ -126,6 +126,39 @@ std::ostream& operator<<(std::ostream& os, PictureType type);
 
 
 
+enum class FrameSideDataType {
+	PANSCAN,
+	A53_CC,
+	STEREO3D,
+	MATRIXENCODING,
+	DOWNMIX_INFO,
+	REPLAYGAIN,
+	DISPLAYMATRIX,
+	AFD,
+	MOTION_VECTORS,
+	SKIP_SAMPLES,
+	AUDIO_SERVICE_TYPE,
+	MASTERING_DISPLAY_METADATA,
+	GOP_TIMECODE,
+	SPHERICAL,
+	CONTENT_LIGHT_LEVEL,
+	ICC_PROFILE,
+	QP_TABLE_PROPERTIES,
+	QP_TABLE_DATA,
+	S12M_TIMECODE,
+	DYNAMIC_HDR_PLUS,
+	REGIONS_OF_INTEREST,
+	VIDEO_ENC_PARAMS,
+
+};
+
+ZUAZO_ENUM_ARITHMETIC_OPERATORS(FrameSideDataType)
+ZUAZO_ENUM_COMP_OPERATORS(FrameSideDataType)	
+
+//std::ostream& operator<<(std::ostream& os, FrameSideData type);
+
+
+
 enum class Discard {
 	NONE = -16,
 };
@@ -175,6 +208,7 @@ std::string_view toString(FFmpeg::ColorRange range);
 std::string_view toString(FFmpeg::ChromaLocation loc);
 //std::string_view toString(FFmpeg::FieldOrder order);
 char toString(FFmpeg::PictureType type);
+//std::string_view toString(FFmpeg::FrameSideDataType type);
 //std::string_view toString(FFmpeg::Discard disc);
 //std::string_view toString(FFmpeg::ThreadType disc);
 //std::string_view toString(FFmpeg::SeekFlags seek);

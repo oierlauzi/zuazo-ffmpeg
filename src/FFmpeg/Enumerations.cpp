@@ -35,6 +35,31 @@ static_assert(static_cast<AVChromaLocation>(ChromaLocation::NONE) == AVCHROMA_LO
 static_assert(static_cast<AVFieldOrder>(FieldOrder::NONE) == AV_FIELD_UNKNOWN, "FieldOrder null value must match");
 static_assert(static_cast<AVFieldOrder>(FieldOrder::PROGRESSIVE) == AV_FIELD_PROGRESSIVE, "FieldOrder progressive value must match");
 
+static_assert(static_cast<AVPictureType>(PictureType::NONE) == AV_PICTURE_TYPE_NONE, "PictureType null value must match");
+
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::PANSCAN) == AV_FRAME_DATA_PANSCAN, "FrameSideDataType PAN_SCAN value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::A53_CC) == AV_FRAME_DATA_A53_CC, "FrameSideDataType A53_CC value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::STEREO3D) == AV_FRAME_DATA_STEREO3D, "FrameSideDataType STEREO3D value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::MATRIXENCODING) == AV_FRAME_DATA_MATRIXENCODING, "FrameSideDataType MATRIXENCODING value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::DOWNMIX_INFO) == AV_FRAME_DATA_DOWNMIX_INFO, "FrameSideDataType DOWNMIX_INFO value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::REPLAYGAIN) == AV_FRAME_DATA_REPLAYGAIN, "FrameSideDataType REPLAYGAIN value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::DISPLAYMATRIX) == AV_FRAME_DATA_DISPLAYMATRIX, "FrameSideDataType DISPLAYMATRIX value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::AFD) == AV_FRAME_DATA_AFD, "FrameSideDataType AFD value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::MOTION_VECTORS) == AV_FRAME_DATA_MOTION_VECTORS, "FrameSideDataType MOTION_VECTORS value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::SKIP_SAMPLES) == AV_FRAME_DATA_SKIP_SAMPLES, "FrameSideDataType SKIP_SAMPLES value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::AUDIO_SERVICE_TYPE) == AV_FRAME_DATA_AUDIO_SERVICE_TYPE, "FrameSideDataType AUDIO_SERVICE_TYPE value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::MASTERING_DISPLAY_METADATA) == AV_FRAME_DATA_MASTERING_DISPLAY_METADATA, "FrameSideDataType MASTERING_DISPLAY_METADATA value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::GOP_TIMECODE) == AV_FRAME_DATA_GOP_TIMECODE, "FrameSideDataType GOP_TIMECODE value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::SPHERICAL) == AV_FRAME_DATA_SPHERICAL, "FrameSideDataType SPHERICAL value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::CONTENT_LIGHT_LEVEL) == AV_FRAME_DATA_CONTENT_LIGHT_LEVEL, "FrameSideDataType CONTENT_LIGHT_LEVEL value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::ICC_PROFILE) == AV_FRAME_DATA_ICC_PROFILE, "FrameSideDataType ICC_PROFILE value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::QP_TABLE_PROPERTIES) == AV_FRAME_DATA_QP_TABLE_PROPERTIES, "FrameSideDataType QP_TABLE_PROPERTIES value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::QP_TABLE_DATA) == AV_FRAME_DATA_QP_TABLE_DATA, "FrameSideDataType QP_TABLE_DATA value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::S12M_TIMECODE) == AV_FRAME_DATA_S12M_TIMECODE, "FrameSideDataType S12M_TIMECODE value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::DYNAMIC_HDR_PLUS) == AV_FRAME_DATA_DYNAMIC_HDR_PLUS, "FrameSideDataType DYNAMIC_HDR_PLUS value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::REGIONS_OF_INTEREST) == AV_FRAME_DATA_REGIONS_OF_INTEREST, "FrameSideDataType REGIONS_OF_INTEREST value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::VIDEO_ENC_PARAMS) == AV_FRAME_DATA_VIDEO_ENC_PARAMS, "FrameSideDataType VIDEO_ENC_PARAMS value must match");
+
 static_assert(static_cast<AVDiscard>(Discard::NONE) == AVDISCARD_NONE, "Discard null value must match");
 
 static_assert(static_cast<int>(ThreadType::NONE) == 0, "ThreadType null value must match");
