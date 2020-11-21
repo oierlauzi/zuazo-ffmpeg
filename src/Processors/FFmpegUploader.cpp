@@ -17,6 +17,7 @@
 extern "C" {
 	#include <libavutil/imgutils.h>
 	#include <libavutil/pixdesc.h>
+	#include <libavutil/mastering_display_metadata.h>
 }
 
 #include <iostream>
@@ -33,6 +34,11 @@ struct FFmpegUploaderImpl {
 
 		Open(const Graphics::Vulkan& vulkan, const Graphics::Frame::Descriptor& frameDesc) 
 			: uploader(vulkan, frameDesc)
+		{
+		}
+
+		Open(const Graphics::Vulkan& vulkan, const Graphics::Frame::Descriptor& frameDesc, const Chromaticities& chromaticities) 
+			: uploader(vulkan, frameDesc, chromaticities)
 		{
 		}
 
@@ -75,10 +81,18 @@ struct FFmpegUploaderImpl {
 			return result;
 		}
 
-		void setFrameDescriptor(const Graphics::Frame::Descriptor& frameDesc) {
+		void recreate(const Graphics::Frame::Descriptor& frameDesc) {
 			uploader = Graphics::Uploader(
 				uploader.getVulkan(), 
 				frameDesc
+			);
+		}
+
+		void recreate(const Graphics::Frame::Descriptor& frameDesc, const Chromaticities& chromaticities) {
+			uploader = Graphics::Uploader(
+				uploader.getVulkan(), 
+				frameDesc,
+				chromaticities
 			);
 		}
 
@@ -149,9 +163,11 @@ struct FFmpegUploaderImpl {
 				{
 					assert(newFrame);
 					uploader.setVideoModeCompatibility(
-						createVideoModeCompatibility(*newFrame)
+						createVideoModeCompatibility(*newFrame) //May call videoModeCallback() in order to recreate
 					);
-				}
+				} /*else if () { //TODO evaluate if chromaticities have changed
+					videoModeCallback(uploader, uploader.getVideoMode()); //This will recreate
+				}*/
 			} else if(oldFrame && !newFrame) {
 				//Frame has become invalid
 				opened.reset();
@@ -183,17 +199,30 @@ struct FFmpegUploaderImpl {
 
 			if(opened && isValid) {
 				//It remais valid but it has changed
-				opened->setFrameDescriptor(videoMode.getFrameDescriptor());
+				if(frameIn.getLastElement()) {
+					opened->recreate(
+						videoMode.getFrameDescriptor(), 
+						calculateColorPrimaries(*frameIn.getLastElement())
+					);
+				} else {
+					opened->recreate(videoMode.getFrameDescriptor());
+				}
+
 			} else if (opened && !isValid) {
 				//It has become invalid
 				opened.reset();
 				videoOut.reset();
 			} else if(!opened && isValid) {
 				//It has become valid
-				opened = Utils::makeUnique<Open>(
-					uploader.getInstance().getVulkan(),
-					videoMode.getFrameDescriptor()
-				);
+				if(frameIn.getLastElement()) {
+					opened = Utils::makeUnique<Open>(
+						uploader.getInstance().getVulkan(),
+						videoMode.getFrameDescriptor(),
+						calculateColorPrimaries(*frameIn.getLastElement())
+					);
+				} else {
+
+				}
 			}
 		}
 	}
@@ -239,6 +268,47 @@ private:
 			colorFormat != ColorFormat::NONE ? Utils::Limit<ColorFormat>(Utils::MustBe<ColorFormat>(colorFormat)) : Utils::Limit<ColorFormat>()
 		);
 		
+		return result;
+	}
+
+	static Chromaticities calculateColorPrimaries(const FFmpeg::Frame& frame) {
+		Chromaticities result = getChromaticities(FFmpeg::fromFFmpeg(frame.getColorPrimaries()));
+
+		//Evaluate if there is any information about the mastering display
+		const auto sideData = frame.getSideData();
+		const auto ite = std::find_if(
+			sideData.cbegin(), sideData.cend(),
+			[] (const FFmpeg::FrameSideData& entry) -> bool {
+				return entry.getType() == FFmpeg::FrameSideDataType::MASTERING_DISPLAY_METADATA;
+			}
+		);
+		if(ite != sideData.cend()) {
+			//It contains information about the mastering display
+			assert(ite->getData().size() >= sizeof(AVMasteringDisplayMetadata));
+			const auto& masteringDisplayMetadata = *reinterpret_cast<const AVMasteringDisplayMetadata*>(ite->getData().data());
+
+			if(masteringDisplayMetadata.has_luminance) {
+				const auto& luminance = masteringDisplayMetadata.max_luminance;
+				result.setWhiteLuminance(static_cast<float>(luminance.num) / luminance.den);
+			}
+
+			if(masteringDisplayMetadata.has_primaries) {
+				const auto& red_x = masteringDisplayMetadata.display_primaries[0][0];
+				const auto& red_y = masteringDisplayMetadata.display_primaries[0][1];
+				const auto& green_x = masteringDisplayMetadata.display_primaries[1][0];
+				const auto& green_y = masteringDisplayMetadata.display_primaries[1][1];
+				const auto& blue_x = masteringDisplayMetadata.display_primaries[2][0];
+				const auto& blue_y = masteringDisplayMetadata.display_primaries[2][1];
+				const auto& white_x = masteringDisplayMetadata.white_point[0];
+				const auto& white_y = masteringDisplayMetadata.white_point[1];
+
+				result.setRedPrimary(Math::Vec2f(static_cast<float>(red_x.num)/red_x.den, static_cast<float>(red_y.num)/red_y.den));
+				result.setGreenPrimary(Math::Vec2f(static_cast<float>(green_x.num)/green_x.den, static_cast<float>(green_y.num)/green_y.den));
+				result.setBluePrimary(Math::Vec2f(static_cast<float>(blue_x.num)/blue_x.den, static_cast<float>(blue_y.num)/blue_y.den));
+				result.setWhitePoint(Math::Vec2f(static_cast<float>(white_x.num)/white_x.den, static_cast<float>(white_y.num)/white_y.den));
+			}
+		}
+
 		return result;
 	}
 
