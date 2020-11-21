@@ -282,7 +282,6 @@ private:
 													const FFmpeg::Frame& frame ) 
 	{
 		Chromaticities result = getChromaticities(frameDesc.colorPrimaries);
-		std::cout << frame.getColorPrimaries() << std::endl;
 
 		//Evaluate if there is any information about the mastering display
 		const auto sideData = frame.getSideData();
