@@ -458,9 +458,9 @@ static PixelFormatConversion fromFFmpegLUT(AVPixelFormat fmt) {
 	//case AV_PIX_FMT_MONOWHITE:		return {}; /*NOT SUPPORTED*/													//       Y        ,  1bpp, 0 is white, 1 is black, in each byte pixels are ordered from the msb to the lsb
 	//case AV_PIX_FMT_MONOBLACK:		return {}; /*NOT SUPPORTED*/ 													//       Y        ,  1bpp, 0 is black, 1 is white, in each byte pixels are ordered from the msb to the lsb
 	//case AV_PIX_FMT_PAL8:	 			return {}; /*NOT SUPPORTED*/ 													//8 bits with AV_PIX_FMT_RGB32 palette
-	//case AV_PIX_FMT_YUVJ420P:			return {}; /* DEPRECATED */ 													//planar YUV 4:2:0, 12bpp, full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV420P and setting color_range
-	//case AV_PIX_FMT_YUVJ422P:			return {}; /* DEPRECATED */ 													//planar YUV 4:2:2, 16bpp, full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV422P and setting color_range
-	//case AV_PIX_FMT_YUVJ444P:			return {}; /* DEPRECATED */ 													//planar YUV 4:4:4, 24bpp, full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV444P and setting color_range
+	case AV_PIX_FMT_YUVJ420P:			return { ColorFormat::G8_B8_R8, ColorSubsampling::RB_420, true };				//planar YUV 4:2:0, 12bpp, full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV420P and setting color_range
+	case AV_PIX_FMT_YUVJ422P:			return { ColorFormat::G8_B8_R8, ColorSubsampling::RB_422, true };				//planar YUV 4:2:2, 16bpp, full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV422P and setting color_range
+	case AV_PIX_FMT_YUVJ444P:			return { ColorFormat::G8_B8_R8, ColorSubsampling::RB_444, true };				//planar YUV 4:4:4, 24bpp, full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV444P and setting color_range
 	case AV_PIX_FMT_UYVY422:			return { ColorFormat::B8G8R8G8, ColorSubsampling::RB_422, true };				//packed YUV 4:2:2, 16bpp, Cb Y0 Cr Y1
 	//case AV_PIX_FMT_UYYVYY411:		return {}; /*NOT SUPPORTED*/  													//packed YUV 4:1:1, 12bpp, Cb Y0 Y1 Cr Y2 Y3
 	//case AV_PIX_FMT_BGR8:	    		return {}; /*NOT SUPPORTED*/													//packed RGB 3:3:2,  8bpp, (msb)2B 3G 3R(lsb)
@@ -479,7 +479,7 @@ static PixelFormatConversion fromFFmpegLUT(AVPixelFormat fmt) {
 
 	case AV_PIX_FMT_GRAY16:				return { ColorFormat::Y16, ColorSubsampling::RB_444, false };					//       Y        , 16bpp
 	case AV_PIX_FMT_YUV440P:			return { ColorFormat::G8_B8_R8, ColorSubsampling::RB_440, true };				//planar YUV 4:4:0 (1 Cr & Cb sample per 1x2 Y samples)
-	//case AV_PIX_FMT_YUVJ440P:			return {}; /* DEPRECATED */ 													//planar YUV 4:4:0 full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV440P and setting color_range
+	case AV_PIX_FMT_YUVJ440P:			return { ColorFormat::G8_B8_R8, ColorSubsampling::RB_440, true };				//planar YUV 4:4:0 full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV440P and setting color_range
 	case AV_PIX_FMT_YUVA420P:			return { ColorFormat::G8_B8_R8_A8, ColorSubsampling::RB_420, true };			//planar YUV 4:2:0, 20bpp, (1 Cr & Cb sample per 2x2 Y & A samples)
 
 	case AV_PIX_FMT_RGB48: 				return { ColorFormat::R16G16B16, ColorSubsampling::RB_444, false }; 			//packed RGB 16:16:16, 48bpp, 16R, 16G, 16B, the 2-byte value for each R/G/B
@@ -562,7 +562,7 @@ static PixelFormatConversion fromFFmpegLUT(AVPixelFormat fmt) {
 	case AV_PIX_FMT_YUV444P14: 			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_444, true };			//planar YUV 4:4:4,42bpp, (1 Cr & Cb sample per 1x1 Y samples)
 	case AV_PIX_FMT_GBRP12:    			return { ColorFormat::G12X4_B12X4_R12X4_16, ColorSubsampling::RB_444, false };	//planar GBR 4:4:4 36bpp
 	case AV_PIX_FMT_GBRP14:    			return { ColorFormat::G16_B16_R16, ColorSubsampling::RB_444, false };			//planar GBR 4:4:4 42bpp
-	//case AV_PIX_FMT_YUVJ411P:			return {}; /* DEPRECATED */ 	    											//planar YUV 4:1:1, 12bpp, (1 Cr & Cb sample per 4x1 Y samples) full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV411P and setting color_range
+	case AV_PIX_FMT_YUVJ411P:			return { ColorFormat::G8_B8_R8, ColorSubsampling::RB_411, true };	    		//planar YUV 4:1:1, 12bpp, (1 Cr & Cb sample per 4x1 Y samples) full scale (JPEG), deprecated in favor of AV_PIX_FMT_YUV411P and setting color_range
 
 	//case AV_PIX_FMT_BAYER_BGGR8:  	return {}; /*NOT SUPPORTED*/ 													//bayer, BGBG..(odd line), GRGR..(even line), 8-bit samples
 	//case AV_PIX_FMT_BAYER_RGGB8:  	return {}; /*NOT SUPPORTED*/ 													//bayer, RGRG..(odd line), GBGB..(even line), 8-bit samples

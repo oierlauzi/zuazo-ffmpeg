@@ -62,6 +62,11 @@ int main(int argc, const char** argv) {
 	lock.lock();
 
 	//Video-mode
+	std::cout << "Video-mode compatibilities:" << std::endl;
+	for(const auto& comp : videoClip.getVideoModeCompatibility()) {
+		std::cout << comp << std::endl;
+	}
+
 	std::cout << "Current video-mode: " << videoClip.getVideoMode() << std::endl;
 
 }
