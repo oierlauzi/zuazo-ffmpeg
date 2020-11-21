@@ -199,13 +199,15 @@ struct FFmpegUploaderImpl {
 
 			if(opened && isValid) {
 				//It remais valid but it has changed
+				const auto& frameDesc = videoMode.getFrameDescriptor();
+
 				if(frameIn.getLastElement()) {
 					opened->recreate(
-						videoMode.getFrameDescriptor(), 
-						calculateColorPrimaries(*frameIn.getLastElement())
+						frameDesc, 
+						calculateColorPrimaries(frameDesc, *frameIn.getLastElement())
 					);
 				} else {
-					opened->recreate(videoMode.getFrameDescriptor());
+					opened->recreate(frameDesc);
 				}
 
 			} else if (opened && !isValid) {
@@ -214,14 +216,19 @@ struct FFmpegUploaderImpl {
 				videoOut.reset();
 			} else if(!opened && isValid) {
 				//It has become valid
+				const auto& frameDesc = videoMode.getFrameDescriptor();
+
 				if(frameIn.getLastElement()) {
 					opened = Utils::makeUnique<Open>(
 						uploader.getInstance().getVulkan(),
-						videoMode.getFrameDescriptor(),
-						calculateColorPrimaries(*frameIn.getLastElement())
+						frameDesc,
+						calculateColorPrimaries(frameDesc, *frameIn.getLastElement())
 					);
 				} else {
-
+					opened = Utils::makeUnique<Open>(
+						uploader.getInstance().getVulkan(),
+						frameDesc
+					);
 				}
 			}
 		}
@@ -271,8 +278,11 @@ private:
 		return result;
 	}
 
-	static Chromaticities calculateColorPrimaries(const FFmpeg::Frame& frame) {
-		Chromaticities result = getChromaticities(FFmpeg::fromFFmpeg(frame.getColorPrimaries()));
+	static Chromaticities calculateColorPrimaries(	const Graphics::Frame::Descriptor& frameDesc, 
+													const FFmpeg::Frame& frame ) 
+	{
+		Chromaticities result = getChromaticities(frameDesc.colorPrimaries);
+		std::cout << frame.getColorPrimaries() << std::endl;
 
 		//Evaluate if there is any information about the mastering display
 		const auto sideData = frame.getSideData();
