@@ -288,24 +288,24 @@ private:
 			const auto& masteringDisplayMetadata = *reinterpret_cast<const AVMasteringDisplayMetadata*>(ite->getData().data());
 
 			if(masteringDisplayMetadata.has_luminance) {
-				const auto& luminance = masteringDisplayMetadata.max_luminance;
-				result.setWhiteLuminance(static_cast<float>(luminance.num) / luminance.den);
+				const auto& luminance = av_q2d(masteringDisplayMetadata.max_luminance);
+				result.setWhiteLuminance(luminance);
 			}
 
 			if(masteringDisplayMetadata.has_primaries) {
-				const auto& red_x = masteringDisplayMetadata.display_primaries[0][0];
-				const auto& red_y = masteringDisplayMetadata.display_primaries[0][1];
-				const auto& green_x = masteringDisplayMetadata.display_primaries[1][0];
-				const auto& green_y = masteringDisplayMetadata.display_primaries[1][1];
-				const auto& blue_x = masteringDisplayMetadata.display_primaries[2][0];
-				const auto& blue_y = masteringDisplayMetadata.display_primaries[2][1];
-				const auto& white_x = masteringDisplayMetadata.white_point[0];
-				const auto& white_y = masteringDisplayMetadata.white_point[1];
+				const auto& red_x = av_q2d(masteringDisplayMetadata.display_primaries[0][0]);
+				const auto& red_y = av_q2d(masteringDisplayMetadata.display_primaries[0][1]);
+				const auto& green_x = av_q2d(masteringDisplayMetadata.display_primaries[1][0]);
+				const auto& green_y = av_q2d(masteringDisplayMetadata.display_primaries[1][1]);
+				const auto& blue_x = av_q2d(masteringDisplayMetadata.display_primaries[2][0]);
+				const auto& blue_y = av_q2d(masteringDisplayMetadata.display_primaries[2][1]);
+				const auto& white_x = av_q2d(masteringDisplayMetadata.white_point[0]);
+				const auto& white_y = av_q2d(masteringDisplayMetadata.white_point[1]);
 
-				result.setRedPrimary(Math::Vec2f(static_cast<float>(red_x.num)/red_x.den, static_cast<float>(red_y.num)/red_y.den));
-				result.setGreenPrimary(Math::Vec2f(static_cast<float>(green_x.num)/green_x.den, static_cast<float>(green_y.num)/green_y.den));
-				result.setBluePrimary(Math::Vec2f(static_cast<float>(blue_x.num)/blue_x.den, static_cast<float>(blue_y.num)/blue_y.den));
-				result.setWhitePoint(Math::Vec2f(static_cast<float>(white_x.num)/white_x.den, static_cast<float>(white_y.num)/white_y.den));
+				result.setRedPrimary(Math::Vec2f(red_x, red_y));
+				result.setGreenPrimary(Math::Vec2f(green_x, green_y));
+				result.setBluePrimary(Math::Vec2f(blue_x, blue_y));
+				result.setWhitePoint(Math::Vec2f(white_x, white_y));
 			}
 		}
 
