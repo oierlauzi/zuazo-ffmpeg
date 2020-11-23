@@ -14,6 +14,10 @@
 #include <queue>
 #include <cassert>
 
+extern "C" {
+	#include <libavcodec/avcodec.h>
+}
+
 namespace Zuazo::Processors {
 
 /*
@@ -33,7 +37,8 @@ struct FFmpegDecoderImpl {
 
 		inline static const auto flushPacket = FFmpeg::Packet();
 
-		Open(	const FFmpeg::CodecParameters& codecPar, 
+		Open(	const FFmpeg::CodecParameters& codecPar,
+				void* opaque,
 				int threadCount, 
 				FFmpeg::ThreadType threadType ) 
 			: codec(findDecoder(codecPar))
@@ -44,6 +49,9 @@ struct FFmpegDecoderImpl {
 			if(codecContext.setParameters(codecPar) < 0) {
 				return; //ERROR
 			}
+
+			codecContext.setOpaque(opaque);
+			codecContext.setPixelFormatNegotiationCallback(FFmpegDecoderImpl::pixelFormatNegotiationCallback);
 
 			codecContext.setThreadCount(threadCount);
 			codecContext.setThreadType(threadType);
@@ -109,6 +117,8 @@ struct FFmpegDecoderImpl {
 	using Input = Signal::Input<FFmpeg::PacketStream>;
 	using Output = Signal::Output<FFmpeg::FrameStream>;
 
+	std::reference_wrapper<FFmpegDecoder> owner;
+
 	Input 							packetIn;
 	Output							frameOut;
 
@@ -116,26 +126,47 @@ struct FFmpegDecoderImpl {
 	int								threadCount;
 	FFmpeg::ThreadType				threadType;
 
+	FFmpegDecoder::PixelFormatNegotiationCallback pixFmtCallback;
 	FFmpegDecoder::DemuxCallback	demuxCallback;
 
 	std::unique_ptr<Open> 			opened;
 
-	FFmpegDecoderImpl(FFmpeg::CodecParameters codecPar, FFmpegDecoder::DemuxCallback demuxCbk) 
-		: codecParameters(std::move(codecPar))
+	FFmpegDecoderImpl(	FFmpegDecoder& owner, 
+						FFmpeg::CodecParameters codecPar, 
+						FFmpegDecoder::PixelFormatNegotiationCallback pixFmtCbk,
+						FFmpegDecoder::DemuxCallback demuxCbk) 
+		: owner(owner)
+		, codecParameters(std::move(codecPar))
 		, threadCount(1)
 		, threadType(FFmpeg::ThreadType::NONE)
+		, pixFmtCallback(std::move(pixFmtCbk))
 		, demuxCallback(std::move(demuxCbk))
 	{
 	}
 
 	~FFmpegDecoderImpl() = default;
 
-
-	void open(ZuazoBase&) {
-		opened = Utils::makeUnique<Open>(codecParameters, threadCount, threadType);
+	void moved(ZuazoBase& base) {
+		owner = static_cast<FFmpegDecoder&>(base);
 	}
 
-	void close(ZuazoBase&) {
+
+	void open(ZuazoBase& base) {
+		const auto& decoder = static_cast<FFmpegDecoder&>(base);
+		assert(&decoder == &owner.get()); (void)(decoder);
+
+		opened = Utils::makeUnique<Open>(
+			codecParameters, 
+			this, 
+			threadCount, 
+			threadType
+		);
+	}
+
+	void close(ZuazoBase& base) {
+		const auto& decoder = static_cast<FFmpegDecoder&>(base);
+		assert(&decoder == &owner.get()); (void)(decoder);
+
 		opened.reset();
 		packetIn.reset();
 		frameOut.reset();
@@ -197,12 +228,33 @@ struct FFmpegDecoderImpl {
 	}
 
 
+	void setPixelFormatNegotiationCallback(FFmpegDecoder::PixelFormatNegotiationCallback cbk) {
+		pixFmtCallback = std::move(cbk);
+	}
+
+	const FFmpegDecoder::PixelFormatNegotiationCallback& getPixelFormatNegotiationCallback() const {
+		return pixFmtCallback;
+	}
+
+
 	void setDemuxCallback(FFmpegDecoder::DemuxCallback cbk) {
 		demuxCallback = std::move(cbk);
 	}
 
 	const FFmpegDecoder::DemuxCallback& getDemuxCallback() const {
 		return demuxCallback;
+	}
+
+private:
+	static FFmpeg::PixelFormat pixelFormatNegotiationCallback(	FFmpeg::CodecContext::Handle codecContext, 
+																const FFmpeg::PixelFormat* formats ) 
+	{
+		assert(codecContext);
+		assert(formats);
+
+		auto* decoder = static_cast<FFmpegDecoderImpl*>(codecContext->opaque);
+		assert(decoder);
+		return decoder->pixFmtCallback ? decoder->pixFmtCallback(decoder->owner, formats) : *formats;
 	}
 
 };
@@ -216,13 +268,14 @@ struct FFmpegDecoderImpl {
 FFmpegDecoder::FFmpegDecoder(	Instance& instance, 
 								std::string name, 
 								FFmpeg::CodecParameters codecPar,
+								PixelFormatNegotiationCallback pixFmtCbk,
 								DemuxCallback demuxCbk )
-	: Utils::Pimpl<FFmpegDecoderImpl>({}, std::move(codecPar), std::move(demuxCbk))
+	: Utils::Pimpl<FFmpegDecoderImpl>({}, *this, std::move(codecPar), std::move(pixFmtCbk), std::move(demuxCbk))
 	, ZuazoBase(
 		instance, 
 		std::move(name),
 		{ (*this)->packetIn, (*this)->frameOut },
-		ZuazoBase::MoveCallback(),
+		std::bind(&FFmpegDecoderImpl::moved, std::ref(**this), std::placeholders::_1),
 		std::bind(&FFmpegDecoderImpl::open, std::ref(**this), std::placeholders::_1),
 		std::bind(&FFmpegDecoderImpl::close, std::ref(**this), std::placeholders::_1),
 		std::bind(&FFmpegDecoderImpl::update, std::ref(**this)) )
@@ -271,6 +324,15 @@ void FFmpegDecoder::setThreadType(FFmpeg::ThreadType type) {
 
 FFmpeg::ThreadType FFmpegDecoder::getThreadType() const {
 	return (*this)->getThreadType();
+}
+
+
+void FFmpegDecoder::setPixelFormatNegotiationCallback(PixelFormatNegotiationCallback cbk) {
+	(*this)->setPixelFormatNegotiationCallback(std::move(cbk));
+}
+
+const FFmpegDecoder::PixelFormatNegotiationCallback& FFmpegDecoder::getPixelFormatNegotiationCallback() const {
+	return (*this)->getPixelFormatNegotiationCallback();
 }
 
 

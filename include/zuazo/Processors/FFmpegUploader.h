@@ -27,6 +27,8 @@ public:
 	FFmpegUploader&			operator=(const FFmpegUploader& other) = delete;
 	FFmpegUploader&			operator=(FFmpegUploader&& other);
 
+	static bool 			isSupportedInput(FFmpeg::PixelFormat fmt);
+
 };
 
 }

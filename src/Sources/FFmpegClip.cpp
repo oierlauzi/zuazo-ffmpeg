@@ -1,5 +1,6 @@
 #include <zuazo/Sources/FFmpegClip.h>
 
+#include <zuazo/FFmpeg/FFmpegConversions.h>
 #include <zuazo/Sources/FFmpegDemuxer.h>
 #include <zuazo/Processors/FFmpegDecoder.h>
 #include <zuazo/Processors/FFmpegUploader.h>
@@ -41,8 +42,8 @@ struct FFmpegClipImpl {
 			: demuxer(demux)
 			, videoStreamIndex(getStreamIndex(demuxer, Zuazo::FFmpeg::MediaType::VIDEO))
 			, audioStreamIndex(getStreamIndex(demuxer, Zuazo::FFmpeg::MediaType::AUDIO))
-			, videoDecoder(demuxer.getInstance(), "Video Decoder", getCodecParameters(demuxer, videoStreamIndex), createDemuxCallback(videoStreamIndex))
-			, audioDecoder(demuxer.getInstance(), "Audio Decoder", getCodecParameters(demuxer, audioStreamIndex), createDemuxCallback(audioStreamIndex))
+			, videoDecoder(demuxer.getInstance(), "Video Decoder", getCodecParameters(demuxer, videoStreamIndex), Open::pixelFormatNegotiationCallback,	createDemuxCallback(videoStreamIndex))
+			, audioDecoder(demuxer.getInstance(), "Audio Decoder", getCodecParameters(demuxer, audioStreamIndex), {}, 									createDemuxCallback(audioStreamIndex))
 			, decodedTimeStamp(NO_TS)
 		{
 			//Route all the signals
@@ -205,6 +206,18 @@ struct FFmpegClipImpl {
 			return TimePoint(Duration(rescaledTimeStamp));
 		}
 
+		static FFmpeg::PixelFormat pixelFormatNegotiationCallback(	Processors::FFmpegDecoder&, 
+																	const FFmpeg::PixelFormat* formats ) 
+		{
+			for(const auto* f = formats; static_cast<int>(*f) >= 0; ++f) {
+				if(Processors::FFmpegUploader::isSupportedInput(*f)) {
+					return *f; //A compatible format was found!
+				}
+			}
+
+			return *formats; //Nothing was found :-<
+		}
+
 	};
 
 
@@ -326,7 +339,6 @@ struct FFmpegClipImpl {
 		//Update the compatibility in the VideoBase
 		owner.get().setVideoModeCompatibility(std::move(compatibility));
 	}
-
 };
 
 

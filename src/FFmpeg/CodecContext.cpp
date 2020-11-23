@@ -1,5 +1,9 @@
 #include "CodecContext.h"
 
+extern "C" {
+	#include <libavcodec/avcodec.h>
+}
+
 #include <cassert>
 
 namespace Zuazo::FFmpeg {
@@ -44,6 +48,14 @@ int CodecContext::open(const AVCodec *codec) {
 }
 
 
+void CodecContext::setOpaque(void* userData) {
+	get().opaque = userData;
+}
+
+void* CodecContext::getOpaque() const {
+	return get().opaque;
+}
+
 
 int CodecContext::setParameters(const CodecParameters& parameters) {
 	return avcodec_parameters_to_context(&get(), parameters);
@@ -57,6 +69,15 @@ CodecParameters CodecContext::getParameters() const {
 	CodecParameters result;
 	getParameters(result);
 	return result;
+}
+
+
+void CodecContext::setPixelFormatNegotiationCallback(PixelFormatNegotiationCallback cbk) {
+	get().get_format = reinterpret_cast<AVPixelFormat (*)(AVCodecContext *s, const AVPixelFormat *fmt)>(cbk);
+}
+
+CodecContext::PixelFormatNegotiationCallback CodecContext::getPixelFormatNegotiationCallback() const {
+	return reinterpret_cast<PixelFormatNegotiationCallback>(get().get_format);
 }
 
 

@@ -11,6 +11,7 @@ extern "C" {
 
 namespace Zuazo::FFmpeg {
 
+static_assert(sizeof(AVMediaType) == sizeof(MediaType), "MediaType enum's size does not match");
 static_assert(static_cast<AVMediaType>(MediaType::NONE) == AVMEDIA_TYPE_UNKNOWN, "MediaType null value must match");
 static_assert(static_cast<AVMediaType>(MediaType::VIDEO) == AVMEDIA_TYPE_VIDEO, "MediaType VIDEO value must match");
 static_assert(static_cast<AVMediaType>(MediaType::AUDIO) == AVMEDIA_TYPE_AUDIO, "MediaType AUDIO value must match");
@@ -18,25 +19,36 @@ static_assert(static_cast<AVMediaType>(MediaType::DATA) == AVMEDIA_TYPE_DATA, "M
 static_assert(static_cast<AVMediaType>(MediaType::SUBTITLE) == AVMEDIA_TYPE_SUBTITLE, "MediaType SUBTITLE value must match");
 static_assert(static_cast<AVMediaType>(MediaType::ATTACHMENT) == AVMEDIA_TYPE_ATTACHMENT, "MediaType ATTACHMENT value must match");
 
+
+static_assert(sizeof(AVCodecID) == sizeof(CodecID), "CodecID enum's size does not match");
 static_assert(static_cast<AVCodecID>(CodecID::NONE) == AV_CODEC_ID_NONE, "CodecID null value must match");
 
+static_assert(sizeof(AVPixelFormat) == sizeof(PixelFormat), "PixelFormat enum's size does not match");
 static_assert(static_cast<AVPixelFormat>(PixelFormat::NONE) == AV_PIX_FMT_NONE, "PixelFormat null value must match");
 
+static_assert(sizeof(AVColorPrimaries) == sizeof(ColorPrimaries), "ColorPrimaries enum's size does not match");
 static_assert(static_cast<AVColorPrimaries>(ColorPrimaries::NONE) == AVCOL_PRI_UNSPECIFIED, "ColorPrimaries null value must match");
 
+static_assert(sizeof(AVColorTransferCharacteristic) == sizeof(ColorTransferCharacteristic), "ColorTransferCharacteristic enum's size does not match");
 static_assert(static_cast<AVColorTransferCharacteristic>(ColorTransferCharacteristic::NONE) == AVCOL_TRC_UNSPECIFIED, "ColorTransferFunction null value must match");
 
+static_assert(sizeof(AVColorSpace) == sizeof(ColorSpace), "ColorSpace enum's size does not match");
 static_assert(static_cast<AVColorSpace>(ColorSpace::NONE) == AVCOL_SPC_UNSPECIFIED, "ColorSpace null value must match");
 
+static_assert(sizeof(AVColorRange) == sizeof(ColorRange), "ColorRange enum's size does not match");
 static_assert(static_cast<AVColorRange>(ColorRange::NONE) == AVCOL_RANGE_UNSPECIFIED, "ColorRange null value must match");
 
+static_assert(sizeof(AVChromaLocation) == sizeof(ChromaLocation), "ChromaLocation enum's size does not match");
 static_assert(static_cast<AVChromaLocation>(ChromaLocation::NONE) == AVCHROMA_LOC_UNSPECIFIED, "ColorRange null value must match");
 
+static_assert(sizeof(AVFieldOrder) == sizeof(FieldOrder), "FieldOrder enum's size does not match");
 static_assert(static_cast<AVFieldOrder>(FieldOrder::NONE) == AV_FIELD_UNKNOWN, "FieldOrder null value must match");
 static_assert(static_cast<AVFieldOrder>(FieldOrder::PROGRESSIVE) == AV_FIELD_PROGRESSIVE, "FieldOrder progressive value must match");
 
+static_assert(sizeof(AVPictureType) == sizeof(PictureType), "PictureType enum's size does not match");
 static_assert(static_cast<AVPictureType>(PictureType::NONE) == AV_PICTURE_TYPE_NONE, "PictureType null value must match");
 
+static_assert(sizeof(AVFrameSideDataType) == sizeof(FrameSideDataType), "FrameSideDataType enum's size does not match");
 static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::PANSCAN) == AV_FRAME_DATA_PANSCAN, "FrameSideDataType PAN_SCAN value must match");
 static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::A53_CC) == AV_FRAME_DATA_A53_CC, "FrameSideDataType A53_CC value must match");
 static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::STEREO3D) == AV_FRAME_DATA_STEREO3D, "FrameSideDataType STEREO3D value must match");
@@ -60,6 +72,7 @@ static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::DYNAMIC_HDR_PL
 static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::REGIONS_OF_INTEREST) == AV_FRAME_DATA_REGIONS_OF_INTEREST, "FrameSideDataType REGIONS_OF_INTEREST value must match");
 static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::VIDEO_ENC_PARAMS) == AV_FRAME_DATA_VIDEO_ENC_PARAMS, "FrameSideDataType VIDEO_ENC_PARAMS value must match");
 
+static_assert(sizeof(AVDiscard) == sizeof(Discard), "Discard enum's size does not match");
 static_assert(static_cast<AVDiscard>(Discard::NONE) == AVDISCARD_NONE, "Discard null value must match");
 
 static_assert(static_cast<int>(ThreadType::NONE) == 0, "ThreadType null value must match");

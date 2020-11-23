@@ -9,9 +9,8 @@
 
 #include <cstddef>
 
-extern "C" {
-	#include <libavcodec/avcodec.h>
-}
+struct AVCodec;
+struct AVCodecContext;
 
 namespace Zuazo::FFmpeg {
 
@@ -20,8 +19,10 @@ public:
 	using Handle = AVCodecContext*;
 	using ConstHandle = const AVCodecContext*;
 
+	using PixelFormatNegotiationCallback = PixelFormat (*)(Handle, const PixelFormat *fmt);
+
 	CodecContext();
-	CodecContext(const AVCodec *codec);
+	CodecContext(const AVCodec *codec); //TODO creare a Codec class to avoid ffmpeg pointers on the iface
 	CodecContext(const CodecContext& other) = delete;
 	CodecContext(CodecContext&& other);
 	~CodecContext();
@@ -36,9 +37,15 @@ public:
 
 	int									open(const AVCodec* codec = nullptr);
 
+	void								setOpaque(void* userData);
+	void*								getOpaque() const;
+
 	int									setParameters(const CodecParameters& parameters);
 	int									getParameters(CodecParameters& parameters) const;
 	CodecParameters						getParameters() const;
+
+	void								setPixelFormatNegotiationCallback(PixelFormatNegotiationCallback cbk);
+	PixelFormatNegotiationCallback		getPixelFormatNegotiationCallback() const;
 
 	void								setThreadCount(int cnt);
 	int									getThreadCount() const;

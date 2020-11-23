@@ -18,11 +18,13 @@ class FFmpegDecoder
 {
 	friend FFmpegDecoderImpl;
 public:
+	using PixelFormatNegotiationCallback = std::function<FFmpeg::PixelFormat(FFmpegDecoder&, const FFmpeg::PixelFormat*)>;
 	using DemuxCallback = std::function<void()>;
 
 	FFmpegDecoder(	Instance& instance, 
 					std::string name, 
 					FFmpeg::CodecParameters codecPar = {},
+					PixelFormatNegotiationCallback pixFmtCbk = {},
 					DemuxCallback demuxCbk = {});
 	FFmpegDecoder(const FFmpegDecoder& other) = delete;
 	FFmpegDecoder(FFmpegDecoder&& other);
@@ -44,6 +46,9 @@ public:
 
 	void							setThreadType(FFmpeg::ThreadType type);
 	FFmpeg::ThreadType				getThreadType() const;
+
+	void							setPixelFormatNegotiationCallback(PixelFormatNegotiationCallback cbk);
+	const PixelFormatNegotiationCallback& getPixelFormatNegotiationCallback() const;
 
 	void							setDemuxCallback(DemuxCallback cbk);
 	const DemuxCallback&			getDemuxCallback() const;

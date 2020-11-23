@@ -1,5 +1,7 @@
 #include <zuazo/Processors/FFmpegUploader.h>
 
+#include "../FFmpeg/SWScaleContext.h"
+
 #include <zuazo/Utils/Functions.h>
 #include <zuazo/Math/Comparisons.h>
 #include <zuazo/Utils/Pool.h>
@@ -31,14 +33,16 @@ namespace Zuazo::Processors {
 struct FFmpegUploaderImpl {
 	struct Open {
 		Graphics::Uploader		uploader;
+		FFmpeg::PixelFormat		dstPixelFormat;
+		FFmpeg::SWScaleContext	swscaleContext;
 
-		Open(const Graphics::Vulkan& vulkan, const Graphics::Frame::Descriptor& frameDesc) 
-			: uploader(vulkan, frameDesc)
-		{
-		}
 
-		Open(const Graphics::Vulkan& vulkan, const Graphics::Frame::Descriptor& frameDesc, const Chromaticities& chromaticities) 
+		Open(	const Graphics::Vulkan& vulkan, 
+				const Graphics::Frame::Descriptor& frameDesc, 
+				const Chromaticities& chromaticities) 
 			: uploader(vulkan, frameDesc, chromaticities)
+			, dstPixelFormat(getPixelFormat(frameDesc))
+			, swscaleContext()
 		{
 		}
 
@@ -47,45 +51,50 @@ struct FFmpegUploaderImpl {
 		Zuazo::Video process(const FFmpeg::Frame& frame) {
 			auto result = uploader.acquireFrame();
 			assert(result);
-				
-			const auto& dstBuffers = result->getPixelData();
+			assert(frame.getResolution() == result->getDescriptor().resolution);
+			assert(dstPixelFormat == getPixelFormat(result->getDescriptor()));
+
+			//Gather information about the destination frame
+			const auto resolution = frame.getResolution();
+
+			//Ensure that the scaler (converter) is properly set-up
+			swscaleContext.recreate(
+				resolution, frame.getPixelFormat(),
+				resolution, dstPixelFormat,
+				0x10
+			);
+
+			//Obtain the plane pointers for the source
 			const auto srcBuffers = frame.getData();
 			const auto srcLinesizes = frame.getLineSizes();
-			const auto planeCount = Math::min(dstBuffers.size(), srcBuffers.size());
-			const auto resolution = frame.getResolution();
-			assert(srcBuffers.size() == srcLinesizes.size());
 
-			//Copy all the data into it
-			for(size_t plane = 0; plane < planeCount; plane++) {
-				//Copy plane by plane
-				const auto byteWidth = av_image_get_linesize(
-					static_cast<AVPixelFormat>(frame.getPixelFormat()),
+			//Obtain the plane pointers for the destination
+			const auto& dstPixelData = result->getPixelData();
+			constexpr size_t MAX_LEN = 8;
+			assert(dstPixelData.size() <= MAX_LEN);
+			std::array<std::byte*, MAX_LEN> dstBuffers;
+			std::array<int, MAX_LEN> dstLinesizes;
+
+			for(size_t i = 0; i < dstPixelData.size(); ++i) {
+				dstBuffers[i] = dstPixelData[i].data();
+				dstLinesizes[i] = av_image_get_linesize( 
+					static_cast<AVPixelFormat>(dstPixelFormat),
 					resolution.width,
-					plane
-				);
-
-				const auto height = getSubsampledHeight(frame.getPixelFormat(), resolution.height, plane);
-
-				assert(dstBuffers[plane].size() >= byteWidth * height);
-				av_image_copy_plane(
-					reinterpret_cast<uint8_t*>(dstBuffers[plane].data()),
-					byteWidth, //Vulkan does not leave spacing between lines
-					reinterpret_cast<const uint8_t*>(srcBuffers[plane]),
-					srcLinesizes[plane],
-					byteWidth,
-					height
+					i
 				);
 			}
 
+			//Copy the data to the destination frame
+			swscaleContext.scale(
+				srcBuffers.data(),
+				srcLinesizes.data(),
+				0, resolution.height,
+				dstBuffers.data(),
+				dstLinesizes.data()
+			);
+
 			result->flush();
 			return result;
-		}
-
-		void recreate(const Graphics::Frame::Descriptor& frameDesc) {
-			uploader = Graphics::Uploader(
-				uploader.getVulkan(), 
-				frameDesc
-			);
 		}
 
 		void recreate(const Graphics::Frame::Descriptor& frameDesc, const Chromaticities& chromaticities) {
@@ -94,14 +103,16 @@ struct FFmpegUploaderImpl {
 				frameDesc,
 				chromaticities
 			);
+			dstPixelFormat = getPixelFormat(frameDesc);
 		}
 
 	private:
-		static uint32_t getSubsampledHeight(FFmpeg::PixelFormat pixFmt, uint32_t height, int plane) {
-			//Based on: http://www.ffmpeg.org/doxygen/trunk/imgutils_8c_source.html#l00111
-			const AVPixFmtDescriptor* desc = av_pix_fmt_desc_get(static_cast<AVPixelFormat>(pixFmt));
-			const uint32_t s = (plane == 1 || plane == 2) ? desc->log2_chroma_h : 0;
-			return (height + (1 << s) - 1) >> s;
+		static FFmpeg::PixelFormat getPixelFormat(const Graphics::Frame::Descriptor& frameDesc) {
+			return FFmpeg::toFFmpeg(FFmpeg::PixelFormatConversion{
+				frameDesc.colorFormat,
+				frameDesc.colorSubsampling,
+				isYCbCr(frameDesc.colorModel)
+			});
 		}
 	};
 
@@ -162,23 +173,18 @@ struct FFmpegUploaderImpl {
 					oldFrame->getPixelFormat() != newFrame->getPixelFormat() )
 				{
 					assert(newFrame);
-					uploader.setVideoModeCompatibility(
-						createVideoModeCompatibility(*newFrame) //May call videoModeCallback() in order to recreate
-					);
+					uploader.setVideoModeCompatibility(createVideoModeCompatibility(*newFrame)); //May call videoModeCallback() in order to recreate
 				} /*else if () { //TODO evaluate if chromaticities have changed
-					videoModeCallback(uploader, uploader.getVideoMode()); //This will recreate
+					const auto& videoMode = uploader.getVideoMode();
+					videoModeCallback(uploader, videoMode); //This will recreate
 				}*/
 			} else if(oldFrame && !newFrame) {
 				//Frame has become invalid
-				opened.reset();
-				videoOut.reset();
 				uploader.setVideoModeCompatibility({});
 			} else if(!oldFrame && newFrame) {
 				//Frame has become valid
 				assert(newFrame);
-				uploader.setVideoModeCompatibility(
-					createVideoModeCompatibility(*newFrame)
-				);
+				uploader.setVideoModeCompatibility(createVideoModeCompatibility(*newFrame));
 			}
 
 			//Convert the frame if possible
@@ -187,7 +193,6 @@ struct FFmpegUploaderImpl {
 				videoOut.push(opened->process(*newFrame));
 			} 
 		}
-		
 	}
 
 	void videoModeCallback(VideoBase& base, const VideoMode& videoMode) {
@@ -199,44 +204,38 @@ struct FFmpegUploaderImpl {
 
 			if(opened && isValid) {
 				//It remais valid but it has changed
-				const auto& frameDesc = videoMode.getFrameDescriptor();
+				assert(frameIn.getLastElement());
+				const auto frameDesc = videoMode.getFrameDescriptor();
 
-				if(frameIn.getLastElement()) {
-					opened->recreate(
-						frameDesc, 
-						calculateColorPrimaries(frameDesc, *frameIn.getLastElement())
-					);
-				} else {
-					opened->recreate(frameDesc);
-				}
-
+				opened->recreate(
+					frameDesc,
+					calculateColorPrimaries(frameDesc, *frameIn.getLastElement())
+				);
 			} else if (opened && !isValid) {
 				//It has become invalid
 				opened.reset();
 				videoOut.reset();
 			} else if(!opened && isValid) {
 				//It has become valid
-				const auto& frameDesc = videoMode.getFrameDescriptor();
+				assert(frameIn.getLastElement());
+				const auto frameDesc = videoMode.getFrameDescriptor();
 
-				if(frameIn.getLastElement()) {
-					opened = Utils::makeUnique<Open>(
-						uploader.getInstance().getVulkan(),
-						frameDesc,
-						calculateColorPrimaries(frameDesc, *frameIn.getLastElement())
-					);
-				} else {
-					opened = Utils::makeUnique<Open>(
-						uploader.getInstance().getVulkan(),
-						frameDesc
-					);
-				}
+				opened = Utils::makeUnique<Open>(
+					uploader.getInstance().getVulkan(),
+					frameDesc,
+					calculateColorPrimaries(frameDesc, *frameIn.getLastElement())
+				);
 			}
 		}
 	}
 	
+	static bool isSupportedInput(FFmpeg::PixelFormat fmt) {
+		return FFmpeg::SWScaleContext::isSupportedInput(fmt);
+	}
+
 private:
-	static std::vector<VideoMode> createVideoModeCompatibility(const FFmpeg::Frame& frame) 
-	{	
+	std::vector<VideoMode> createVideoModeCompatibility(const FFmpeg::Frame& frame) const {	
+		const auto& uploader = owner.get();
 		std::vector<VideoMode> result;
 
 		const auto frameResolution = frame.getResolution();
@@ -247,7 +246,7 @@ private:
 		const auto frameColorRange = frame.getColorRange();
 		const auto framePixelFormat = frame.getPixelFormat();
 
-		const auto fmtConversion = FFmpeg::fromFFmpeg(framePixelFormat);
+		const auto fmtConversion = FFmpeg::fromFFmpeg(getBestConversion(uploader.getInstance().getVulkan(), framePixelFormat));
 		constexpr auto defaultPixelAspectRatio = AspectRatio(1, 1);
 		const auto defaultColorPrimaries = ColorPrimaries::BT709;
 		const auto defaultColorModel = fmtConversion.isYCbCr ? ColorModel::BT709 : ColorModel::RGB;
@@ -327,6 +326,48 @@ private:
 		};
 	}
 
+	static FFmpeg::PixelFormat getBestConversion(	const Graphics::Vulkan& vulkan, 
+													FFmpeg::PixelFormat srcFormat ) 
+	{
+		FFmpeg::PixelFormat best = FFmpeg::PixelFormat::NONE;
+		int loss;
+		const auto& compatibleFormats = Graphics::Uploader::getSupportedFormats(vulkan);
+
+		//Obtain info about the source format
+		const AVPixFmtDescriptor* pixDesc = av_pix_fmt_desc_get(static_cast<AVPixelFormat>(srcFormat));
+		assert(pixDesc);
+		ColorSubsampling colorSubsampling;
+		switch((pixDesc->log2_chroma_h << (sizeof(pixDesc->log2_chroma_w)*Utils::getByteSize())) + pixDesc->log2_chroma_h) {
+		//log2  H W
+		case 0x0000: colorSubsampling = ColorSubsampling::RB_444; break;
+		case 0x0001: colorSubsampling = ColorSubsampling::RB_440; break;
+		case 0x0100: colorSubsampling = ColorSubsampling::RB_422; break;
+		case 0x0101: colorSubsampling = ColorSubsampling::RB_420; break;
+		case 0x0200: colorSubsampling = ColorSubsampling::RB_411; break;
+		case 0x0201: colorSubsampling = ColorSubsampling::RB_410; break;
+		default: 	 colorSubsampling = ColorSubsampling::NONE;   break;
+		}
+		const bool ycbcr = !(pixDesc->flags & AV_PIX_FMT_FLAG_RGB);
+
+		for(const auto& format : compatibleFormats) {
+			//Convert the parameters into a ffmpeg format
+			const auto conversion = FFmpeg::toFFmpeg(FFmpeg::PixelFormatConversion{format, colorSubsampling, ycbcr});
+
+			if(static_cast<int>(conversion) >= 0 && FFmpeg::SWScaleContext::isSupportedOutput(conversion)) {
+				//This format is supported both by swscale and zuazo
+				loss = 0;
+				best = static_cast<FFmpeg::PixelFormat>(av_find_best_pix_fmt_of_2(
+					static_cast<AVPixelFormat>(best),
+					static_cast<AVPixelFormat>(conversion),
+					static_cast<AVPixelFormat>(srcFormat),
+					1, //Use alpha if available
+					&loss
+				));
+			}
+		} 
+
+		return best;
+	}
 };
 
 
@@ -358,5 +399,8 @@ FFmpegUploader::~FFmpegUploader() = default;
 
 FFmpegUploader& FFmpegUploader::operator=(FFmpegUploader&& other) = default;
 
+bool FFmpegUploader::isSupportedInput(FFmpeg::PixelFormat fmt) {
+	return FFmpegUploaderImpl::isSupportedInput(fmt);
+}
 
 }
