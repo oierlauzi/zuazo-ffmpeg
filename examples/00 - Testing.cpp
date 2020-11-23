@@ -2,7 +2,7 @@
  * This example shows how instantiate an output window
  * 
  * How to compile:
- * c++ 00\ -\ Testing.cpp -std=c++17 -Wall -Wextra -lzuazo -lzuazo-window -lzuazo-ffmpeg -lavutil -lavformat -lavcodec -lglfw -ldl -lpthread
+ * c++ 00\ -\ Testing.cpp -std=c++17 -Wall -Wextra -lzuazo -lzuazo-window -lzuazo-ffmpeg -lavutil -lavformat -lavcodec -lswscale -lglfw -ldl -lpthread
  */
 
 

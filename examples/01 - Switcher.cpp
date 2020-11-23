@@ -2,7 +2,7 @@
  * This example shows how to buil a simple video switcher
  * 
  * How to compile:
- * c++ 01\ -\ Switcher.cpp -std=c++17 -Wall -Wextra -lzuazo -lzuazo-window -lzuazo-ffmpeg -lavutil -lavformat -lavcodec -lglfw -ldl -lpthread
+ * c++ 01\ -\ Switcher.cpp -std=c++17 -Wall -Wextra -lzuazo -lzuazo-window -lzuazo-ffmpeg -lavutil -lavformat -lswscale -lavcodec -lglfw -ldl -lpthread
  */
 
 
