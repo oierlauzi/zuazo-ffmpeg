@@ -1,5 +1,7 @@
 #include "InputFormatContext.h"
 
+#include <zuazo/Exception.h>
+
 extern "C" {
 	#include <libavformat/avformat.h>
 }
@@ -10,12 +12,17 @@ InputFormatContext::InputFormatContext(const char* url)
 	: m_handle(nullptr)
 {
 	if(avformat_open_input(&m_handle, url, NULL, NULL) != 0) {
-		return; //Opening the input
+		//Opening the input
+		throw Exception("Unable to open the input for file: " + std::string(url));
 	}
 
-	if(avformat_find_stream_info(m_handle, NULL) < 0)
-		return; //Error getting stream info
+	if(avformat_find_stream_info(m_handle, NULL) < 0) {
+		//Error getting stream info
+		throw Exception("Unable to find stream info for the file: " + std::string(url));
+	}
 
+	//At this point it should have been successful
+	assert(m_handle);
 }
 
 InputFormatContext::InputFormatContext(InputFormatContext&& other)

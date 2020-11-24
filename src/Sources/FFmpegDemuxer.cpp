@@ -103,8 +103,9 @@ struct FFmpegDemuxerImpl {
 		assert(!opened);
 		auto& demux = static_cast<FFmpegDemuxer&>(base);
 
-		opened = Utils::makeUnique<Open>(url.c_str());
+		opened = Utils::makeUnique<Open>(url.c_str()); //May throw! (nothing has been done yet, so don't worry about cleaning)
 
+		assert(opened);
 		for(auto& pad : opened->pads) {
 			demux.registerPad(pad);
 		}

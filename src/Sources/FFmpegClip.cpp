@@ -251,9 +251,10 @@ struct FFmpegClipImpl {
 		auto& clip = static_cast<FFmpegClip&>(base);
 		assert(&owner.get() == &clip);
 
-		demuxer.open();
+		demuxer.open(); //May throw! (nothing has been done yet, so don't worry about cleaning)
 		videoUploader.open();
 		opened = Utils::makeUnique<Open>(demuxer);
+		assert(opened);
 
 		//Route the decoder signal
 		videoUploader << opened->videoDecoder;

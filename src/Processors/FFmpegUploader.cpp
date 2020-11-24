@@ -296,19 +296,19 @@ private:
 			const auto& masteringDisplayMetadata = *reinterpret_cast<const AVMasteringDisplayMetadata*>(ite->getData().data());
 
 			if(masteringDisplayMetadata.has_luminance) {
-				const auto& luminance = av_q2d(masteringDisplayMetadata.max_luminance);
+				const auto luminance = av_q2d(masteringDisplayMetadata.max_luminance);
 				result.setWhiteLuminance(luminance);
 			}
 
 			if(masteringDisplayMetadata.has_primaries) {
-				const auto& red_x = av_q2d(masteringDisplayMetadata.display_primaries[0][0]);
-				const auto& red_y = av_q2d(masteringDisplayMetadata.display_primaries[0][1]);
-				const auto& green_x = av_q2d(masteringDisplayMetadata.display_primaries[1][0]);
-				const auto& green_y = av_q2d(masteringDisplayMetadata.display_primaries[1][1]);
-				const auto& blue_x = av_q2d(masteringDisplayMetadata.display_primaries[2][0]);
-				const auto& blue_y = av_q2d(masteringDisplayMetadata.display_primaries[2][1]);
-				const auto& white_x = av_q2d(masteringDisplayMetadata.white_point[0]);
-				const auto& white_y = av_q2d(masteringDisplayMetadata.white_point[1]);
+				const auto red_x = av_q2d(masteringDisplayMetadata.display_primaries[0][0]);
+				const auto red_y = av_q2d(masteringDisplayMetadata.display_primaries[0][1]);
+				const auto green_x = av_q2d(masteringDisplayMetadata.display_primaries[1][0]);
+				const auto green_y = av_q2d(masteringDisplayMetadata.display_primaries[1][1]);
+				const auto blue_x = av_q2d(masteringDisplayMetadata.display_primaries[2][0]);
+				const auto blue_y = av_q2d(masteringDisplayMetadata.display_primaries[2][1]);
+				const auto white_x = av_q2d(masteringDisplayMetadata.white_point[0]);
+				const auto white_y = av_q2d(masteringDisplayMetadata.white_point[1]);
 
 				result.setRedPrimary(Math::Vec2f(red_x, red_y));
 				result.setGreenPrimary(Math::Vec2f(green_x, green_y));
@@ -336,18 +336,8 @@ private:
 		//Obtain info about the source format
 		const AVPixFmtDescriptor* pixDesc = av_pix_fmt_desc_get(static_cast<AVPixelFormat>(srcFormat));
 		assert(pixDesc);
-		ColorSubsampling colorSubsampling;
-		switch((pixDesc->log2_chroma_h << (sizeof(pixDesc->log2_chroma_w)*Utils::getByteSize())) + pixDesc->log2_chroma_h) {
-		//log2  H W
-		case 0x0000: colorSubsampling = ColorSubsampling::RB_444; break;
-		case 0x0001: colorSubsampling = ColorSubsampling::RB_440; break;
-		case 0x0100: colorSubsampling = ColorSubsampling::RB_422; break;
-		case 0x0101: colorSubsampling = ColorSubsampling::RB_420; break;
-		case 0x0200: colorSubsampling = ColorSubsampling::RB_411; break;
-		case 0x0201: colorSubsampling = ColorSubsampling::RB_410; break;
-		default: 	 colorSubsampling = ColorSubsampling::NONE;   break;
-		}
-		const bool ycbcr = !(pixDesc->flags & AV_PIX_FMT_FLAG_RGB);
+		const ColorSubsampling colorSubsampling = subsamplingFromLog2(pixDesc->log2_chroma_w, pixDesc->log2_chroma_h);
+		const bool ycbcr = !(pixDesc->flags & AV_PIX_FMT_FLAG_RGB); //FIXME grayscales are interpreted as non-rgb
 
 		for(const auto& format : compatibleFormats) {
 			//Convert the parameters into a ffmpeg format
@@ -367,6 +357,29 @@ private:
 		} 
 
 		return best;
+	}
+
+	static ColorSubsampling subsamplingFromLog2(uint8_t hor, uint8_t vert) {
+		ColorSubsampling result;
+
+		//Put in a single integer both values shifting them
+		const uint16_t hvSubsampling = (hor << (sizeof(vert)*Utils::getByteSize())) + vert;
+
+		//Based on that combined integer, decide the result
+		switch(hvSubsampling) {
+		//log2  H W
+		case 0x0000: result = ColorSubsampling::RB_444; break;
+		case 0x0001: result = ColorSubsampling::RB_440; break;
+		case 0x0100: result = ColorSubsampling::RB_422; break;
+		case 0x0101: result = ColorSubsampling::RB_420; break;
+		case 0x0200: result = ColorSubsampling::RB_411; break;
+		case 0x0201: result = ColorSubsampling::RB_410; break;
+		default: 	 result = ColorSubsampling::NONE;   break;
+		}
+
+		//Check the result. Other subsamplings not in the list are unexpected from FFmpeg
+		assert(Math::Vec2i(1<<hor, 1<<vert) == getSubsamplingFactor(result));
+		return result;
 	}
 };
 
