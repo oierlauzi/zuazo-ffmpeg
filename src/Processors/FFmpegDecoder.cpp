@@ -63,11 +63,6 @@ struct FFmpegDecoderImpl {
 
 		~Open() = default;
 
-		void update(const FFmpeg::PacketStream& pkt) {
-			assert(pkt);
-			packetQueue.push(pkt);
-		}
-
 		FFmpeg::FrameStream decode(const FFmpegDecoder::DemuxCallback& demuxCbk) {
 			auto frame = framePool.acquire();
 			assert(frame);
@@ -98,6 +93,11 @@ struct FFmpegDecoderImpl {
 			}
 
 			return frame;
+		}
+
+		void read(const FFmpeg::PacketStream& pkt) {
+			assert(pkt);
+			packetQueue.push(pkt);
 		}
 
 		void flush() {
@@ -173,22 +173,15 @@ struct FFmpegDecoderImpl {
 	}
 
 	void update() {
-		if(opened && packetIn.hasChanged()) {
-			opened->update(packetIn.pull());
+		if(opened) {
+			frameOut.push(opened->decode(demuxCallback));
 		}
 	}
 
-	bool decode() {
-		if(opened) {
-			auto result = opened->decode(demuxCallback);
-
-			if(result) {
-				frameOut.push(std::move(result));
-				return true;
-			}
+	void readPacket() {
+		if(opened && packetIn.hasChanged()) {
+			opened->read(packetIn.pull());
 		}
-
-		return false;
 	}
 
 	void flush() {
@@ -291,8 +284,8 @@ FFmpegDecoder& FFmpegDecoder::operator=(FFmpegDecoder&& other) = default;
 
 
 
-bool FFmpegDecoder::decode() {
-	return (*this)->decode();
+void FFmpegDecoder::readPacket() {
+	return (*this)->readPacket();
 }
 
 void FFmpegDecoder::flush() {

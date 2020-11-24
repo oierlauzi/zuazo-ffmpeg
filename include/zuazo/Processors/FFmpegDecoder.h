@@ -35,7 +35,7 @@ public:
 
 	using ZuazoBase::update;
 
-	bool							decode();
+	void							readPacket();
 	void							flush();
 
 	void							setCodecParameters(FFmpeg::CodecParameters codecPar);

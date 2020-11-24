@@ -90,9 +90,9 @@ struct FFmpegClipImpl {
 
 				if(isValidIndex(lastIndex)) {
 					if(lastIndex == videoStreamIndex) {
-						update(videoDecoder, videoStreamIndex);
+						readPacket(videoDecoder, videoStreamIndex);
 					} else if (lastIndex == audioStreamIndex) {
-						update(audioDecoder, audioStreamIndex);
+						readPacket(audioDecoder, audioStreamIndex);
 					}
 				}
 			} while(demuxer.getLastStreamIndex() != index);
@@ -136,10 +136,10 @@ struct FFmpegClipImpl {
 			}
 		}
 
-		static void update(Processors::FFmpegDecoder& decoder, int index) {
+		static void readPacket(Processors::FFmpegDecoder& decoder, int index) {
 			if(isValidIndex(index)) {
 				assert(decoder.isOpen());
-				decoder.update();
+				decoder.readPacket();
 			}
 		}
 
@@ -160,9 +160,9 @@ struct FFmpegClipImpl {
 
 				//Decode until the target timestamp is reached
 				while(decodedTimeStamp < targetTimeStamp) {
-					if(decoder.decode()) {
-						//Succesfuly decoded something!
-						assert(output.getLastElement());
+					decoder.update();
+					if(output.getLastElement()) {
+						//Successfully decoded something!
 						decodedTimeStamp = calculateTimeStamp(stream, *(output.getLastElement()));
 					} else {
 						//Failed to decode. Exit
