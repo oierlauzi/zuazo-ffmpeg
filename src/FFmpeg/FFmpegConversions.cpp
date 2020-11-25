@@ -577,7 +577,7 @@ HWDeviceType getHardwareDeviceType(PixelFormat fmt) {
 	switch(static_cast<AVPixelFormat>(fmt)){
 	case AV_PIX_FMT_VDPAU:			return HWDeviceType::VDPAU;
 	case AV_PIX_FMT_CUDA:			return HWDeviceType::CUDA;
-	case AV_PIX_FMT_VAAPI:			return HWDeviceType::VAAPI;
+	case AV_PIX_FMT_VAAPI_VLD:		return HWDeviceType::VAAPI;
 	case AV_PIX_FMT_DXVA2_VLD:		return HWDeviceType::DXVA2;
 	case AV_PIX_FMT_QSV:			return HWDeviceType::QSV;
 	case AV_PIX_FMT_VIDEOTOOLBOX:	return HWDeviceType::VIDEOTOOLBOX;

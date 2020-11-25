@@ -42,6 +42,15 @@ void CodecContext::swap(CodecContext& other) {
 }
 
 
+CodecContext::operator Handle() {
+	return m_handle;
+}
+
+CodecContext::operator ConstHandle() const {
+	return m_handle;
+}
+
+
 
 int CodecContext::open(const AVCodec *codec) {
 	return avcodec_open2(&get(), codec, nullptr);

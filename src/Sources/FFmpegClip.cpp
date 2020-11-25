@@ -54,6 +54,10 @@ struct FFmpegClipImpl {
 			enableMultithreading(videoDecoder);
 			enableMultithreading(audioDecoder);
 
+			//Enable hw deco.
+			enableHardwareDecoding(videoDecoder);
+			enableHardwareDecoding(audioDecoder);
+
 			//Open them
 			open(videoDecoder, videoStreamIndex);
 			open(audioDecoder, audioStreamIndex);
@@ -186,6 +190,13 @@ struct FFmpegClipImpl {
 			decoder.setThreadType(FFmpeg::ThreadType::FRAME); //Don't care the delay
 		}
 
+		static void enableHardwareDecoding(Processors::FFmpegDecoder& decoder) {
+			const auto support = decoder.getHardwareDeviceTypeSupport();
+			if(support.size()) {
+				decoder.setHardwareDeviceType(support[0]);
+			}
+		}
+
 
 		static bool isValidIndex(int index) {
 			return index >= 0;
@@ -206,11 +217,19 @@ struct FFmpegClipImpl {
 			return TimePoint(Duration(rescaledTimeStamp));
 		}
 
-		static FFmpeg::PixelFormat pixelFormatNegotiationCallback(	Processors::FFmpegDecoder&, 
+		static FFmpeg::PixelFormat pixelFormatNegotiationCallback(	Processors::FFmpegDecoder& decoder,
 																	const FFmpeg::PixelFormat* formats ) 
 		{
+			//Check if a desired hardware accelerated format is present
 			for(const auto* f = formats; static_cast<int>(*f) >= 0; ++f) {
-				if(Processors::FFmpegUploader::isSupportedInput(*f)) {
+				if(decoder.getHardwareDeviceType() == getHardwareDeviceType(*f)) {
+					return *f; //A hardware accelerated format was found!
+				}
+			}
+
+			//No luck with hardware accelerated formats try with normal ones
+			for(const auto* f = formats; static_cast<int>(*f) >= 0; ++f) {
+				if(Processors::FFmpegUploader::isSupportedInput(*f) && !isHardwarePixelFormat(*f)) {
 					return *f; //A compatible format was found!
 				}
 			}
