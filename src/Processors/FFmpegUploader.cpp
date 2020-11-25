@@ -17,6 +17,7 @@
 #include <tuple>
 
 extern "C" {
+	#include <libavutil/hwcontext.h>
 	#include <libavutil/imgutils.h>
 	#include <libavutil/pixdesc.h>
 	#include <libavutil/mastering_display_metadata.h>
@@ -33,7 +34,8 @@ namespace Zuazo::Processors {
 struct FFmpegUploaderImpl {
 	struct Open {
 		Graphics::Uploader		uploader;
-		FFmpeg::PixelFormat		dstPixelFormat;
+		FFmpeg::Frame			intermediateFrame;
+		FFmpeg::Frame			dstFrame;
 		FFmpeg::SWScaleContext	swscaleContext;
 
 
@@ -41,9 +43,13 @@ struct FFmpegUploaderImpl {
 				const Graphics::Frame::Descriptor& frameDesc, 
 				const Chromaticities& chromaticities) 
 			: uploader(vulkan, frameDesc, chromaticities)
-			, dstPixelFormat(getPixelFormat(frameDesc))
+			, intermediateFrame()
+			, dstFrame()
 			, swscaleContext()
 		{
+			fillFrameData(dstFrame, frameDesc);
+
+
 		}
 
 		~Open() = default;
@@ -51,47 +57,68 @@ struct FFmpegUploaderImpl {
 		Zuazo::Video process(const FFmpeg::Frame& frame) {
 			auto result = uploader.acquireFrame();
 			assert(result);
-			assert(frame.getResolution() == result->getDescriptor().resolution);
-			assert(dstPixelFormat == getPixelFormat(result->getDescriptor()));
+			assert(frame.getResolution() == dstFrame.getResolution());
 
 			//Gather information about the destination frame
 			const auto resolution = frame.getResolution();
+			auto* hwAccelContext = static_cast<const AVFrame*>(frame)->hw_frames_ctx;
 
-			//Ensure that the scaler (converter) is properly set-up
-			swscaleContext.recreate(
-				resolution, frame.getPixelFormat(),
-				resolution, dstPixelFormat,
-				0x10
-			);
-
-			//Obtain the plane pointers for the source
-			const auto srcBuffers = frame.getData();
-			const auto srcLinesizes = frame.getLineSizes();
-
-			//Obtain the plane pointers for the destination
-			const auto& dstPixelData = result->getPixelData();
-			constexpr size_t MAX_LEN = 8;
-			assert(dstPixelData.size() <= MAX_LEN);
-			std::array<std::byte*, MAX_LEN> dstBuffers;
-			std::array<int, MAX_LEN> dstLinesizes;
-
-			for(size_t i = 0; i < dstPixelData.size(); ++i) {
-				dstBuffers[i] = dstPixelData[i].data();
-				dstLinesizes[i] = av_image_get_linesize( 
-					static_cast<AVPixelFormat>(dstPixelFormat),
-					resolution.width,
-					i
-				);
+			//Fill the data pointers in the destination frame
+			for(size_t i = 0; i < dstFrame.getData().size(); ++i) {
+				dstFrame.getData()[i] = (i < result->getPixelData().size()) ?
+										result->getPixelData()[i].data() :
+										nullptr ;
 			}
 
-			//Copy the data to the destination frame
-			swscaleContext.scale(
-				srcBuffers.data(),
-				srcLinesizes.data(),
-				0, resolution.height,
-				dstBuffers.data(),
-				dstLinesizes.data()
-			);
+			//Evaluate if the frame needs to be downloaded
+			if(hwAccelContext) {
+				//This is a hardware accelerated frame
+				//Obtain which formats are supported for destination
+				FFmpeg::PixelFormat *supportedFormatsBegin, *supportedFormatsEnd;
+				av_hwframe_transfer_get_formats(
+					hwAccelContext,
+					AV_HWFRAME_TRANSFER_DIRECTION_FROM,
+					reinterpret_cast<AVPixelFormat**>(&supportedFormatsBegin),
+					0
+				);
+				supportedFormatsEnd = supportedFormatsBegin;
+				while(*supportedFormatsEnd != FFmpeg::PixelFormat::NONE) ++supportedFormatsEnd; //Advance the end pointer til the end of the array
+
+				//Evaluate if any conversion is needed
+				//if(std::find(supportedFormatsBegin, supportedFormatsEnd, dstFrame.getPixelFormat()) != supportedFormatsEnd) {
+				if (false) { //FIXME this transfer segfaults
+					//Destination format is directly supported for download
+					av_hwframe_transfer_data(
+						static_cast<AVFrame*>(dstFrame),
+						static_cast<const AVFrame*>(frame),
+						0
+					);
+				} else {
+					//TODO evaluate if intermediateFrame remains compatible for download
+					//Download the data. This will call reallocate the frame if necessary
+					av_hwframe_transfer_data(
+						static_cast<AVFrame*>(intermediateFrame),
+						static_cast<const AVFrame*>(frame),
+						0
+					);
+
+					//Copy the data from the intermediate frame
+					convert(dstFrame, intermediateFrame);
+				}
+			} else {
+				//Not a HW accelerated format, treat normally
+				//Evaluate if any conversion is needed
+				if(frame.getPixelFormat() == dstFrame.getPixelFormat()) {
+					//No need for conversion. Simply copy
+					av_frame_copy(
+						static_cast<AVFrame*>(dstFrame), 
+						static_cast<const AVFrame*>(frame)
+					);
+				} else {
+					//A conversion needs to be done
+					convert(dstFrame, frame);
+				}
+			}
 
 			result->flush();
 			return result;
@@ -103,17 +130,49 @@ struct FFmpegUploaderImpl {
 				frameDesc,
 				chromaticities
 			);
-			dstPixelFormat = getPixelFormat(frameDesc);
+			fillFrameData(dstFrame, frameDesc);
 		}
 
 	private:
-		static FFmpeg::PixelFormat getPixelFormat(const Graphics::Frame::Descriptor& frameDesc) {
-			return FFmpeg::toFFmpeg(FFmpeg::PixelFormatConversion{
+		void convert(FFmpeg::Frame& dst, const FFmpeg::Frame& src) {
+			constexpr int SWS_NO_SCALING_FILTER = 0x10;
+
+			//Ensure that the scaler (converter) is properly set-up
+			swscaleContext.recreate(
+				src.getResolution(), src.getPixelFormat(),
+				dst.getResolution(), dst.getPixelFormat(),
+				SWS_NO_SCALING_FILTER
+			);
+
+			//Convert
+			swscaleContext.scale(
+				src.getData().data(),
+				src.getLineSizes().data(),
+				0, src.getResolution().height,
+				dst.getData().data(),
+				dst.getLineSizes().data()
+			);
+		}
+
+		static void fillFrameData(FFmpeg::Frame& frame, const Graphics::Frame::Descriptor& frameDesc) {
+			const auto format = FFmpeg::toFFmpeg(FFmpeg::PixelFormatConversion{
 				frameDesc.colorFormat,
 				frameDesc.colorSubsampling,
 				isYCbCr(frameDesc.colorModel)
 			});
+
+			//Set the most important parameters
+			frame.setResolution(frameDesc.resolution);
+			frame.setPixelFormat(format);
+
+			//Fill the line sizes
+			av_image_fill_linesizes(
+				static_cast<AVFrame*>(frame)->linesize,
+				static_cast<AVPixelFormat>(format),
+				frameDesc.resolution.width
+			);
 		}
+
 	};
 
 	using Input = Signal::Input<FFmpeg::FrameStream>;
@@ -230,7 +289,7 @@ struct FFmpegUploaderImpl {
 	}
 	
 	static bool isSupportedInput(FFmpeg::PixelFormat fmt) {
-		return FFmpeg::SWScaleContext::isSupportedInput(fmt);
+		return isHardwarePixelFormat(fmt) || FFmpeg::SWScaleContext::isSupportedInput(fmt);
 	}
 
 private:
@@ -244,7 +303,7 @@ private:
 		const auto frameColorSpace = frame.getColorSpace();
 		const auto frameColorTransferFunction = frame.getColorTransferCharacteristic();
 		const auto frameColorRange = frame.getColorRange();
-		const auto framePixelFormat = frame.getPixelFormat();
+		const auto framePixelFormat = getFramePixelFormat(frame);
 
 		const auto fmtConversion = FFmpeg::fromFFmpeg(getBestConversion(uploader.getInstance().getVulkan(), framePixelFormat));
 		constexpr auto defaultPixelAspectRatio = AspectRatio(1, 1);
@@ -326,6 +385,28 @@ private:
 		};
 	}
 
+	static FFmpeg::PixelFormat getFramePixelFormat(const FFmpeg::Frame& frame) {
+		FFmpeg::PixelFormat result;
+		auto* hwCtx = static_cast<const AVFrame*>(frame)->hw_frames_ctx;
+
+		if(hwCtx) {
+			FFmpeg::PixelFormat *list = nullptr;
+			av_hwframe_transfer_get_formats(
+				hwCtx,
+				AV_HWFRAME_TRANSFER_DIRECTION_FROM,
+				reinterpret_cast<AVPixelFormat**>(&list),
+				0
+			);
+
+			assert(list);
+			result = list[0];
+		} else {
+			result = frame.getPixelFormat();
+		}
+
+		return result;
+	}
+
 	static FFmpeg::PixelFormat getBestConversion(	const Graphics::Vulkan& vulkan, 
 													FFmpeg::PixelFormat srcFormat ) 
 	{
@@ -336,7 +417,7 @@ private:
 		//Obtain info about the source format
 		const AVPixFmtDescriptor* pixDesc = av_pix_fmt_desc_get(static_cast<AVPixelFormat>(srcFormat));
 		assert(pixDesc);
-		const ColorSubsampling colorSubsampling = subsamplingFromLog2(pixDesc->log2_chroma_w, pixDesc->log2_chroma_h);
+		const ColorSubsampling colorSubsampling = FFmpeg::subsamplingFromLog2(pixDesc->log2_chroma_w, pixDesc->log2_chroma_h);
 		const bool ycbcr = !(pixDesc->flags & AV_PIX_FMT_FLAG_RGB); //FIXME grayscales are interpreted as non-rgb
 
 		for(const auto& format : compatibleFormats) {
@@ -359,28 +440,6 @@ private:
 		return best;
 	}
 
-	static ColorSubsampling subsamplingFromLog2(uint8_t hor, uint8_t vert) {
-		ColorSubsampling result;
-
-		//Put in a single integer both values shifting them
-		const uint16_t hvSubsampling = (hor << (sizeof(vert)*Utils::getByteSize())) + vert;
-
-		//Based on that combined integer, decide the result
-		switch(hvSubsampling) {
-		//log2  H W
-		case 0x0000: result = ColorSubsampling::RB_444; break;
-		case 0x0001: result = ColorSubsampling::RB_440; break;
-		case 0x0100: result = ColorSubsampling::RB_422; break;
-		case 0x0101: result = ColorSubsampling::RB_420; break;
-		case 0x0200: result = ColorSubsampling::RB_411; break;
-		case 0x0201: result = ColorSubsampling::RB_410; break;
-		default: 	 result = ColorSubsampling::NONE;   break;
-		}
-
-		//Check the result. Other subsamplings not in the list are unexpected from FFmpeg
-		assert(Math::Vec2i(1<<hor, 1<<vert) == getSubsamplingFactor(result));
-		return result;
-	}
 };
 
 

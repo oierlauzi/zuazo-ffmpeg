@@ -297,7 +297,7 @@ static AVPixelFormat toFFmpegLUT(const PixelFormatConversion& fmt) {
 			}
 			break;
 
-		case ColorFormat::G16_B16R16:
+		case Utils::bele(ColorFormat::G16_B16R16, ColorFormat::G16_R16B16):
 			switch (fmt.colorSubsampling) {
 			case ColorSubsampling::RB_420:			return AV_PIX_FMT_P016;
 			default: break;
@@ -477,7 +477,6 @@ static PixelFormatConversion fromFFmpegLUT(AVPixelFormat fmt) {
 
 	//case AV_PIX_FMT_XYZ12:			return {}; /*NOT SUPPORTED*/  													//packed XYZ 4:4:4, 36 bpp, (msb) 12X, 12Y, 12Z (lsb), the 2-byte value for each X/Y/Z, the 4 lower bits are set to 0
 
-
 	case AV_PIX_FMT_NV16: 				return { ColorFormat::G8_B8R8, ColorSubsampling::RB_422, true };	 			//interleaved chroma YUV 4:2:2, 16bpp, (1 Cr & Cb sample per 2x1 Y samples)
 	//case AV_PIX_FMT_NV20:      		return {}; /*NOT SUPPORTED*/ 													//interleaved chroma YUV 4:2:2, 20bpp, (1 Cr & Cb sample per 2x1 Y samples)
 
@@ -572,6 +571,54 @@ static PixelFormatConversion fromFFmpegLUT(AVPixelFormat fmt) {
 
 PixelFormatConversion fromFFmpeg(PixelFormat fmt) {
 	return fromFFmpegLUT(static_cast<AVPixelFormat>(fmt));
+}
+
+HWDeviceType getHardwareDeviceType(PixelFormat fmt) {
+	switch(static_cast<AVPixelFormat>(fmt)){
+	case AV_PIX_FMT_VDPAU:			return HWDeviceType::VDPAU;
+	case AV_PIX_FMT_CUDA:			return HWDeviceType::CUDA;
+	case AV_PIX_FMT_VAAPI:			return HWDeviceType::VAAPI;
+	case AV_PIX_FMT_DXVA2_VLD:		return HWDeviceType::DXVA2;
+	case AV_PIX_FMT_QSV:			return HWDeviceType::QSV;
+	case AV_PIX_FMT_VIDEOTOOLBOX:	return HWDeviceType::VIDEOTOOLBOX;
+	case AV_PIX_FMT_D3D11VA_VLD:	return HWDeviceType::D3D11VA;
+	case AV_PIX_FMT_DRM_PRIME:		return HWDeviceType::DRM;
+	case AV_PIX_FMT_OPENCL:			return HWDeviceType::OPENCL;
+	case AV_PIX_FMT_MEDIACODEC:		return HWDeviceType::MEDIACODEC;
+	case AV_PIX_FMT_VULKAN:			return HWDeviceType::VULKAN;
+	default:						return HWDeviceType::NONE;
+	}
+}
+
+ColorSubsampling subsamplingFromLog2(uint8_t hor, uint8_t vert) {
+	ColorSubsampling result;
+
+	//Put in a single integer both values shifting them
+	const uint16_t hvSubsampling = (hor << (sizeof(vert)*Utils::getByteSize())) + vert;
+
+	//Based on that combined integer, decide the result
+	switch(hvSubsampling) {
+	//log2  H W
+	case 0x0000: result = ColorSubsampling::RB_444; break;
+	case 0x0001: result = ColorSubsampling::RB_440; break;
+	case 0x0100: result = ColorSubsampling::RB_422; break;
+	case 0x0101: result = ColorSubsampling::RB_420; break;
+	case 0x0200: result = ColorSubsampling::RB_411; break;
+	case 0x0201: result = ColorSubsampling::RB_410; break;
+	default: 	 result = ColorSubsampling::NONE;   break;
+	}
+
+	//Check the result. Other subsamplings not in the list are unexpected from FFmpeg
+	assert(Math::Vec2i(1<<hor, 1<<vert) == getSubsamplingFactor(result));
+	return result;
+}
+
+bool isHardwarePixelFormat(FFmpeg::PixelFormat fmt) {
+	return av_pix_fmt_desc_get(static_cast<AVPixelFormat>(fmt))->flags & AV_PIX_FMT_FLAG_HWACCEL;
+}
+
+bool isRGBPixelFormat(FFmpeg::PixelFormat fmt) {
+	return av_pix_fmt_desc_get(static_cast<AVPixelFormat>(fmt))->flags & AV_PIX_FMT_FLAG_RGB;
 }
 
 }

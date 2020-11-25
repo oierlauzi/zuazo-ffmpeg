@@ -35,4 +35,10 @@ struct PixelFormatConversion {
 PixelFormat toFFmpeg(const PixelFormatConversion& fmt);
 PixelFormatConversion fromFFmpeg(PixelFormat fmt);
 
+HWDeviceType getHardwareDeviceType(PixelFormat fmt);
+
+ColorSubsampling subsamplingFromLog2(uint8_t hor, uint8_t vert);
+bool isHardwarePixelFormat(FFmpeg::PixelFormat fmt);
+bool isRGBPixelFormat(FFmpeg::PixelFormat fmt);
+
 }

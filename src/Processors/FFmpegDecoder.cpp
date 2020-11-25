@@ -247,7 +247,20 @@ private:
 
 		auto* decoder = static_cast<FFmpegDecoderImpl*>(codecContext->opaque);
 		assert(decoder);
-		return decoder->pixFmtCallback ? decoder->pixFmtCallback(decoder->owner, formats) : *formats;
+		const auto result = decoder->pixFmtCallback ? decoder->pixFmtCallback(decoder->owner, formats) : *formats;
+
+		//If it is a hardware format, a context needs to be created
+		if(FFmpeg::isHardwarePixelFormat(result)) {
+			const auto type = getHardwareDeviceType(result);
+			const auto err = av_hwdevice_ctx_create(
+				&(codecContext->hw_device_ctx),
+				static_cast<AVHWDeviceType>(type),
+				nullptr, nullptr, 0
+			);
+			assert(err >= 0); 
+		}
+
+		return result;
 	}
 
 };

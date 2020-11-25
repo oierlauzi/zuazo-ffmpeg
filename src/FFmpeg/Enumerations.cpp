@@ -4,6 +4,7 @@ extern "C" {
 	#include <libavutil/avutil.h>
 	#include <libavutil/pixfmt.h>
 	#include <libavutil/pixdesc.h>
+	#include <libavutil/hwcontext.h>
 	#include <libavformat/avformat.h>
 	#include <libavcodec/codec_id.h>
 	#include <libavcodec/avcodec.h>
@@ -85,6 +86,20 @@ static_assert(static_cast<int>(SeekFlags::BYTE) == AVSEEK_FLAG_BYTE, "Seek BYTE 
 static_assert(static_cast<int>(SeekFlags::ANY) == AVSEEK_FLAG_ANY, "Seek ANY value must match");
 static_assert(static_cast<int>(SeekFlags::FRAME) == AVSEEK_FLAG_FRAME, "Seek FRAME value must match");
 
+static_assert(static_cast<int>(HWDeviceType::NONE) == AV_HWDEVICE_TYPE_NONE, "Hardware device type NONE value must match");
+static_assert(static_cast<int>(HWDeviceType::VDPAU) == AV_HWDEVICE_TYPE_VDPAU, "Hardware device type VDPAU value must match");
+static_assert(static_cast<int>(HWDeviceType::CUDA) == AV_HWDEVICE_TYPE_CUDA, "Hardware device type CUDA value must match");
+static_assert(static_cast<int>(HWDeviceType::VAAPI) == AV_HWDEVICE_TYPE_VAAPI, "Hardware device type VAAPI value must match");
+static_assert(static_cast<int>(HWDeviceType::DXVA2) == AV_HWDEVICE_TYPE_DXVA2, "Hardware device type DXVA2 value must match");
+static_assert(static_cast<int>(HWDeviceType::QSV) == AV_HWDEVICE_TYPE_QSV, "Hardware device type QSV value must match");
+static_assert(static_cast<int>(HWDeviceType::VIDEOTOOLBOX) == AV_HWDEVICE_TYPE_VIDEOTOOLBOX, "Hardware device type VIDEOTOOLBOX value must match");
+static_assert(static_cast<int>(HWDeviceType::D3D11VA) == AV_HWDEVICE_TYPE_D3D11VA, "Hardware device type D3D11VA value must match");
+static_assert(static_cast<int>(HWDeviceType::DRM) == AV_HWDEVICE_TYPE_DRM, "Hardware device type DRM value must match");
+static_assert(static_cast<int>(HWDeviceType::OPENCL) == AV_HWDEVICE_TYPE_OPENCL, "Hardware device type OPENCL value must match");
+static_assert(static_cast<int>(HWDeviceType::MEDIACODEC) == AV_HWDEVICE_TYPE_MEDIACODEC, "Hardware device type MEDIACODEC value must match");
+static_assert(static_cast<int>(HWDeviceType::VULKAN) == AV_HWDEVICE_TYPE_VULKAN, "Hardware device type VULKAN value must match");
+
+
 MediaType getMediaType(CodecID id) {
 	return static_cast<MediaType>(avcodec_get_type(static_cast<AVCodecID>(id)));
 }
@@ -126,6 +141,10 @@ std::ostream& operator<<(std::ostream& os, ChromaLocation loc) {
 std::ostream& operator<<(std::ostream& os, PictureType type) {
 	char str = toString(type);
 	return os << std::string_view(&str, 1);
+}
+
+std::ostream& operator<<(std::ostream& os, HWDeviceType type) {
+	return os << toString(type);
 }
 
 }
@@ -170,6 +189,10 @@ std::string_view toString(FFmpeg::ChromaLocation loc) {
 
 char toString(FFmpeg::PictureType type) {
 	return av_get_picture_type_char(static_cast<AVPictureType>(type));
+}
+
+std::string_view toString(FFmpeg::HWDeviceType type) {
+	return std::string_view(av_hwdevice_get_type_name(static_cast<AVHWDeviceType>(type)));
 }
 
 }

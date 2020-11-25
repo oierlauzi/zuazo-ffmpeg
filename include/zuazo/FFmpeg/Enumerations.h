@@ -194,6 +194,27 @@ ZUAZO_ENUM_BIT_OPERATORS(SeekFlags)
 
 //std::ostream& operator<<(std::ostream& os, SeekFlags seek);
 
+
+
+enum class HWDeviceType {
+	NONE			= 0, 
+	VDPAU			= 1,
+	CUDA			= 2,
+	VAAPI			= 3,
+	DXVA2			= 4,
+	QSV				= 5,
+	VIDEOTOOLBOX	= 6,
+	D3D11VA			= 7,
+	DRM				= 8,
+	OPENCL			= 9,
+	MEDIACODEC		= 10,
+	VULKAN			= 11
+};
+
+ZUAZO_ENUM_BIT_OPERATORS(HWDeviceType)
+
+std::ostream& operator<<(std::ostream& os, HWDeviceType type);
+
 }
 
 namespace Zuazo {
@@ -212,6 +233,6 @@ char toString(FFmpeg::PictureType type);
 //std::string_view toString(FFmpeg::Discard disc);
 //std::string_view toString(FFmpeg::ThreadType disc);
 //std::string_view toString(FFmpeg::SeekFlags seek);
-
+std::string_view toString(FFmpeg::HWDeviceType type);
 
 }
