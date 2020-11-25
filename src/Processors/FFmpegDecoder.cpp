@@ -252,12 +252,18 @@ private:
 		//If it is a hardware format, a context needs to be created
 		if(FFmpeg::isHardwarePixelFormat(result)) {
 			const auto type = getHardwareDeviceType(result);
-			const auto err = av_hwdevice_ctx_create(
+
+			//Ensure that it is freed, as it might have been allocated previously
+			if(codecContext->hw_device_ctx) {
+				av_buffer_unref(&(codecContext->hw_device_ctx));
+			}
+
+			//Create the new context
+			av_hwdevice_ctx_create(
 				&(codecContext->hw_device_ctx),
 				static_cast<AVHWDeviceType>(type),
 				nullptr, nullptr, 0
 			);
-			assert(err >= 0); 
 		}
 
 		return result;
