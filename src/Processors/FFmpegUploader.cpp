@@ -48,6 +48,14 @@ struct FFmpegUploaderImpl {
 			, swscaleContext()
 		{
 			fillFrameData(dstFrame, frameDesc);
+
+			//HACK av_hwframe_transfer_data() checks if buf[0] is set in order to not allocate data
+			//Allocate an empty buffer
+			static_cast<AVFrame*>(dstFrame)->buf[0] = av_buffer_create(
+				nullptr, 0, //No data
+				[] (void*, uint8_t*) -> void {},
+				nullptr, 0
+			);
 		}
 
 		~Open() = default;
