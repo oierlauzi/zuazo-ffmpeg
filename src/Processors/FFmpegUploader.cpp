@@ -109,7 +109,6 @@ struct FFmpegUploaderImpl {
 
 			} else {
 				//Not a hw frame. Simply copy data from the source frame
-				//Copy the data from the source frame frame
 				convert(dstFrame, frame);
 			}
 
