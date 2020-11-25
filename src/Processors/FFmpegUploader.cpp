@@ -48,8 +48,6 @@ struct FFmpegUploaderImpl {
 			, swscaleContext()
 		{
 			fillFrameData(dstFrame, frameDesc);
-
-
 		}
 
 		~Open() = default;
@@ -61,7 +59,7 @@ struct FFmpegUploaderImpl {
 
 			//Gather information about the destination frame
 			const auto resolution = frame.getResolution();
-			auto* hwAccelContext = static_cast<const AVFrame*>(frame)->hw_frames_ctx;
+			auto* hwAccelBuffer = static_cast<const AVFrame*>(frame)->hw_frames_ctx;
 
 			//Fill the data pointers in the destination frame
 			for(size_t i = 0; i < dstFrame.getData().size(); ++i) {
@@ -71,12 +69,12 @@ struct FFmpegUploaderImpl {
 			}
 
 			//Evaluate if the frame needs to be downloaded
-			if(hwAccelContext) {
+			if(hwAccelBuffer) {
 				//This is a hardware accelerated frame
 				//Obtain which formats are supported for destination
 				FFmpeg::PixelFormat *supportedFormatsBegin, *supportedFormatsEnd;
-				av_hwframe_transfer_get_formats(
-					hwAccelContext,
+				av_hwframe_transfer_get_formats( //FIXME this function allocates data, undesired for real-time
+					hwAccelBuffer,
 					AV_HWFRAME_TRANSFER_DIRECTION_FROM,
 					reinterpret_cast<AVPixelFormat**>(&supportedFormatsBegin),
 					0
@@ -85,9 +83,9 @@ struct FFmpegUploaderImpl {
 				while(*supportedFormatsEnd != FFmpeg::PixelFormat::NONE) ++supportedFormatsEnd; //Advance the end pointer til the end of the array
 
 				//Evaluate if any conversion is needed
-				//if(std::find(supportedFormatsBegin, supportedFormatsEnd, dstFrame.getPixelFormat()) != supportedFormatsEnd) {
-				if (false) { //FIXME this transfer segfaults
+				if(std::find(supportedFormatsBegin, supportedFormatsEnd, dstFrame.getPixelFormat()) != supportedFormatsEnd) {
 					//Destination format is directly supported for download
+					//Transfer the data to the destination
 					av_hwframe_transfer_data(
 						static_cast<AVFrame*>(dstFrame),
 						static_cast<const AVFrame*>(frame),
@@ -105,19 +103,14 @@ struct FFmpegUploaderImpl {
 					//Copy the data from the intermediate frame
 					convert(dstFrame, intermediateFrame);
 				}
+
+				//Format list must be freed
+				av_freep(&supportedFormatsBegin);
+
 			} else {
-				//Not a HW accelerated format, treat normally
-				//Evaluate if any conversion is needed
-				if(frame.getPixelFormat() == dstFrame.getPixelFormat()) {
-					//No need for conversion. Simply copy
-					av_frame_copy(
-						static_cast<AVFrame*>(dstFrame), 
-						static_cast<const AVFrame*>(frame)
-					);
-				} else {
-					//A conversion needs to be done
-					convert(dstFrame, frame);
-				}
+				//Not a hw frame. Simply copy data from the source frame
+				//Copy the data from the source frame frame
+				convert(dstFrame, frame);
 			}
 
 			result->flush();
@@ -135,23 +128,33 @@ struct FFmpegUploaderImpl {
 
 	private:
 		void convert(FFmpeg::Frame& dst, const FFmpeg::Frame& src) {
-			constexpr int SWS_NO_SCALING_FILTER = 0x10;
+			if(dst.getPixelFormat() == src.getPixelFormat()) {
+				//No need for conversion, simply copy
+				av_frame_copy(
+					static_cast<AVFrame*>(dst), 
+					static_cast<const AVFrame*>(src)
+				);
+			} else {
+				//A conversion needs to be done
+				constexpr int SWS_NO_SCALING_FILTER = 0x10;
 
-			//Ensure that the scaler (converter) is properly set-up
-			swscaleContext.recreate(
-				src.getResolution(), src.getPixelFormat(),
-				dst.getResolution(), dst.getPixelFormat(),
-				SWS_NO_SCALING_FILTER
-			);
+				//Ensure that the scaler (converter) is properly set-up
+				swscaleContext.recreate(
+					src.getResolution(), src.getPixelFormat(),
+					dst.getResolution(), dst.getPixelFormat(),
+					SWS_NO_SCALING_FILTER
+				);
 
-			//Convert
-			swscaleContext.scale(
-				src.getData().data(),
-				src.getLineSizes().data(),
-				0, src.getResolution().height,
-				dst.getData().data(),
-				dst.getLineSizes().data()
-			);
+				//Convert
+				swscaleContext.scale(
+					src.getData().data(),
+					src.getLineSizes().data(),
+					0, src.getResolution().height,
+					dst.getData().data(),
+					dst.getLineSizes().data()
+				);
+			}
+
 		}
 
 		static void fillFrameData(FFmpeg::Frame& frame, const Graphics::Frame::Descriptor& frameDesc) {
