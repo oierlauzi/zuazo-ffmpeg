@@ -39,11 +39,9 @@ public:
 	void							flush();
 
 	void							setCodecParameters(FFmpeg::CodecParameters codecPar);
-	const FFmpeg::CodecParameters& 	getCodecParameters() const;
+	const FFmpeg::CodecParameters& 	getCodecParameters() const;	
 
-	void 							setHardwareDeviceType(FFmpeg::HWDeviceType type);
-	FFmpeg::HWDeviceType 			getHardwareDeviceType() const;
-	Utils::Discrete<FFmpeg::HWDeviceType> getHardwareDeviceTypeSupport() const;			
+	FFmpeg::HWDeviceType			getHardwareDeviceType() const;
 
 	void							setThreadType(FFmpeg::ThreadType type);
 	FFmpeg::ThreadType				getThreadType() const;

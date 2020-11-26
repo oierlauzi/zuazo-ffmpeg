@@ -38,7 +38,6 @@ struct FFmpegDecoderImpl {
 		inline static const auto flushPacket = FFmpeg::Packet();
 
 		Open(	const FFmpeg::CodecParameters& codecPar,
-				FFmpeg::HWDeviceType hwDeviceType,
 				FFmpeg::ThreadType threadType,
 				int threadCount, 
 				void* opaque ) 
@@ -55,13 +54,7 @@ struct FFmpegDecoderImpl {
 			codecContext.setPixelFormatNegotiationCallback(FFmpegDecoderImpl::pixelFormatNegotiationCallback);
 
 			//Set the hardware device
-			if(hwDeviceType != FFmpeg::HWDeviceType::NONE) {
-				av_hwdevice_ctx_create(
-					&(static_cast<AVCodecContext*>(codecContext)->hw_device_ctx),
-					static_cast<AVHWDeviceType>(hwDeviceType),
-					nullptr, nullptr, 0
-				);
-			}
+			static_cast<AVCodecContext*>(codecContext)->hw_device_ctx = createHwDeviceContext(codec);
 
 			//Enable the multithreading
 			codecContext.setThreadCount(threadCount);
@@ -117,6 +110,34 @@ struct FFmpegDecoderImpl {
 			codecContext.flush();
 		}
 
+	private:
+		static const AVCodec* findDecoder(const FFmpeg::CodecParameters& codecPar) {
+			const auto id = codecPar.getCodecId();
+			return avcodec_find_decoder(static_cast<AVCodecID>(id));
+		}
+
+		static AVBufferRef* createHwDeviceContext(const AVCodec* codec) {
+			AVBufferRef* result = nullptr;
+
+			if(codec) {
+				//Iterate through all the hardware configurations
+				const AVCodecHWConfig* codecHwConfig;
+				for(size_t i = 0; (codecHwConfig = avcodec_get_hw_config(codec, i)) && !result; ++i) {
+					assert(codecHwConfig);
+
+					//Check if this initialisation method is supported
+					if(codecHwConfig->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) {
+						av_hwdevice_ctx_create(
+							&result,
+							codecHwConfig->device_type,
+							nullptr, nullptr, 0
+						);
+					}
+				}
+			}
+
+			return result;
+		}
 	};
 
 	using Input = Signal::Input<FFmpeg::PacketStream>;
@@ -128,7 +149,6 @@ struct FFmpegDecoderImpl {
 	Output							frameOut;
 
 	FFmpeg::CodecParameters			codecParameters;
-	FFmpeg::HWDeviceType			hardwareDeviceType;
 	FFmpeg::ThreadType				threadType;
 	int								threadCount;
 
@@ -143,7 +163,6 @@ struct FFmpegDecoderImpl {
 						FFmpegDecoder::DemuxCallback demuxCbk) 
 		: owner(owner)
 		, codecParameters(std::move(codecPar))
-		, hardwareDeviceType(FFmpeg::HWDeviceType::NONE)
 		, threadType(FFmpeg::ThreadType::NONE)
 		, threadCount(1)
 		, pixFmtCallback(std::move(pixFmtCbk))
@@ -164,7 +183,6 @@ struct FFmpegDecoderImpl {
 
 		opened = Utils::makeUnique<Open>(
 			codecParameters, 
-			hardwareDeviceType,
 			threadType,
 			threadCount, 
 			this
@@ -206,34 +224,22 @@ struct FFmpegDecoderImpl {
 		return codecParameters;
 	}
 
-
-	void setHardwareDeviceType(FFmpeg::HWDeviceType type) {
-		hardwareDeviceType = type;
-	}
-
 	FFmpeg::HWDeviceType getHardwareDeviceType() const {
-		return hardwareDeviceType;
-	}
+		FFmpeg::HWDeviceType result = FFmpeg::HWDeviceType::NONE;
 
-	Utils::Discrete<FFmpeg::HWDeviceType> getHardwareDeviceTypeSupport() const {
-		Utils::Discrete<FFmpeg::HWDeviceType> result;
-		const auto* decoder = findDecoder(codecParameters);
-
-		if(decoder) {
-			const AVCodecHWConfig* codecHwConfig;
-			for(size_t i = 0; (codecHwConfig = avcodec_get_hw_config(decoder, i)); ++i) {
-				assert(codecHwConfig);
-
-				//Check if this initialisation method is supported
-				if(codecHwConfig->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) {
-					result.emplace_back(static_cast<FFmpeg::HWDeviceType>(codecHwConfig->device_type));
+		if(opened) {
+			const auto* codecCtx = static_cast<const AVCodecContext*>(opened->codecContext);
+			if(codecCtx) {
+				if(codecCtx->hw_device_ctx) {
+					const auto* hwDeviceCtx = reinterpret_cast<const AVHWDeviceContext*>(codecCtx->hw_device_ctx->data);
+					assert(hwDeviceCtx);
+					result = static_cast<FFmpeg::HWDeviceType>(hwDeviceCtx->type);
 				}
 			}
 		}
 
 		return result;
 	}
-
 
 	void setThreadType(FFmpeg::ThreadType type) {
 		threadType = type;
@@ -271,11 +277,6 @@ struct FFmpegDecoderImpl {
 	}
 
 private:
-	static const AVCodec* findDecoder(const FFmpeg::CodecParameters& codecPar) {
-		const auto id = codecPar.getCodecId();
-		return avcodec_find_decoder(static_cast<AVCodecID>(id));
-	}
-
 	static FFmpeg::PixelFormat pixelFormatNegotiationCallback(	FFmpeg::CodecContext::Handle codecContext, 
 																const FFmpeg::PixelFormat* formats ) 
 	{
@@ -338,19 +339,9 @@ const FFmpeg::CodecParameters& FFmpegDecoder::getCodecParameters() const {
 	return (*this)->getCodecParameters();
 }
 
-
-void FFmpegDecoder::setHardwareDeviceType(FFmpeg::HWDeviceType type) {
-	(*this)->setHardwareDeviceType(type);
-}
-
 FFmpeg::HWDeviceType FFmpegDecoder::getHardwareDeviceType() const {
 	return (*this)->getHardwareDeviceType();
 }
-
-Utils::Discrete<FFmpeg::HWDeviceType> FFmpegDecoder::getHardwareDeviceTypeSupport() const {
-	return (*this)->getHardwareDeviceTypeSupport();
-}
-
 
 void FFmpegDecoder::setThreadType(FFmpeg::ThreadType type) {
 	(*this)->setThreadType(type);

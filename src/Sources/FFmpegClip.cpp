@@ -54,10 +54,6 @@ struct FFmpegClipImpl {
 			enableMultithreading(videoDecoder);
 			enableMultithreading(audioDecoder);
 
-			//Enable hw deco.
-			enableHardwareDecoding(videoDecoder);
-			enableHardwareDecoding(audioDecoder);
-
 			//Open them
 			open(videoDecoder, videoStreamIndex);
 			open(audioDecoder, audioStreamIndex);
@@ -190,14 +186,6 @@ struct FFmpegClipImpl {
 			decoder.setThreadType(FFmpeg::ThreadType::FRAME); //Don't care the delay
 		}
 
-		static void enableHardwareDecoding(Processors::FFmpegDecoder& decoder) {
-			const auto support = decoder.getHardwareDeviceTypeSupport();
-			if(support.size()) {
-				decoder.setHardwareDeviceType(support[0]);
-			}
-		}
-
-
 		static bool isValidIndex(int index) {
 			return index >= 0;
 		}
@@ -222,7 +210,9 @@ struct FFmpegClipImpl {
 		{
 			//Check if a desired hardware accelerated format is present
 			for(const auto* f = formats; static_cast<int>(*f) >= 0; ++f) {
-				if(decoder.getHardwareDeviceType() == getHardwareDeviceType(*f)) {
+				if(	Processors::FFmpegUploader::isSupportedInput(*f) && 
+					decoder.getHardwareDeviceType() == getHardwareDeviceType(*f) ) 
+				{
 					return *f; //A hardware accelerated format was found!
 				}
 			}
