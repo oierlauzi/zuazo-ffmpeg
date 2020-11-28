@@ -165,21 +165,22 @@ struct FFmpegUploaderImpl {
 		}
 
 		static void fillFrameData(FFmpeg::Frame& frame, const Graphics::Frame::Descriptor& frameDesc) {
+			const auto resolution = frameDesc.getResolution();
 			const auto format = FFmpeg::toFFmpeg(FFmpeg::PixelFormatConversion{
-				frameDesc.colorFormat,
-				frameDesc.colorSubsampling,
-				isYCbCr(frameDesc.colorModel)
+				frameDesc.getColorFormat(),
+				frameDesc.getColorSubsampling(),
+				isYCbCr(frameDesc.getColorModel())
 			});
 
 			//Set the most important parameters
-			frame.setResolution(frameDesc.resolution);
+			frame.setResolution(resolution);
 			frame.setPixelFormat(format);
 
 			//Fill the line sizes
 			av_image_fill_linesizes(
 				static_cast<AVFrame*>(frame)->linesize,
 				static_cast<AVPixelFormat>(format),
-				frameDesc.resolution.width
+				resolution.width
 			);
 		}
 
@@ -349,7 +350,7 @@ private:
 	static Chromaticities calculateColorPrimaries(	const Graphics::Frame::Descriptor& frameDesc, 
 													const FFmpeg::Frame& frame ) 
 	{
-		Chromaticities result = getChromaticities(frameDesc.colorPrimaries);
+		Chromaticities result = getChromaticities(frameDesc.getColorPrimaries());
 
 		//Evaluate if there is any information about the mastering display
 		const auto sideData = frame.getSideData();
