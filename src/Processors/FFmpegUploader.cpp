@@ -23,8 +23,6 @@ extern "C" {
 	#include <libavutil/mastering_display_metadata.h>
 }
 
-#include <iostream>
-
 namespace Zuazo::Processors {
 
 /*

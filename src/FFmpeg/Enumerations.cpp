@@ -126,6 +126,10 @@ std::ostream& operator<<(std::ostream& os, ColorPrimaries prim) {
 	return os << toString(prim);
 }
 
+std::ostream& operator<<(std::ostream& os, ColorTransferCharacteristic trc) {
+	return os << toString(trc);
+}
+
 std::ostream& operator<<(std::ostream& os, ColorSpace space) {
 	return os << toString(space);
 }
@@ -169,10 +173,6 @@ std::string_view toString(FFmpeg::ColorPrimaries prim) {
 
 std::string_view toString(FFmpeg::ColorTransferCharacteristic trc) {
 	return std::string_view(av_color_transfer_name(static_cast<AVColorTransferCharacteristic>(trc)));
-}
-
-std::ostream& operator<<(std::ostream& os, FFmpeg::ColorTransferCharacteristic trc) {
-	return os << toString(trc);
 }
 
 std::string_view toString(FFmpeg::ColorSpace space) {
