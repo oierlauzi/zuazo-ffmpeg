@@ -329,7 +329,7 @@ struct FFmpegClipImpl {
 
 	void videoModeCallback(VideoBase& base, const VideoMode& videoMode) {
 		auto& clip = static_cast<FFmpegClip&>(base);
-		assert(&owner.get() == &clip);
+		assert(&owner.get() == &clip); (void)(clip);
 
 		videoUploader.setVideoModeLimits(videoMode);
 	}
