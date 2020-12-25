@@ -274,9 +274,8 @@ struct FFmpegClipImpl {
 			: Duration::max()
 		);
 		clip.setTimeStep(getPeriod(opened->getFrameRate()));
-		clip.enableRegularUpdate(Instance::INPUT_PRIORITY);
 
-		refresh(clip); //Ensure that the first frame has been decoded
+		update(); //Ensure that the first frame has been decoded
 	}
 
 	void close(ZuazoBase& base) {
@@ -284,10 +283,8 @@ struct FFmpegClipImpl {
 		auto& clip = static_cast<FFmpegClip&>(base);
 		assert(&owner.get() == &clip);
 
-		clip.disableRegularUpdate();
 		clip.setDuration(Duration::max());
 		clip.setTimeStep(Duration());
-
 
 		opened.reset();
 		videoUploader.close();
@@ -295,15 +292,8 @@ struct FFmpegClipImpl {
 	}
 
 	void update() {
-		FFmpegClip& clip = owner;
-		const auto delta = clip.getInstance().getDeltaT();
-		clip.advance(delta);
-	}
-
-	void refresh(ClipBase& base) {
 		if(opened) {
-			auto& clip = static_cast<FFmpegClip&>(base);
-			assert(&owner.get() == &clip);
+			auto& clip = owner.get();
 
 			const auto targetTimeStamp = clip.getTime();
 			const auto delta = targetTimeStamp - opened->decodedTimeStamp;
@@ -375,7 +365,7 @@ FFmpegClip::FFmpegClip(	Instance& instance,
 	, ClipBase(
 		Duration::max(), 
 		Duration(),
-		std::bind(&FFmpegClipImpl::refresh, std::ref(**this), std::placeholders::_1) )
+		std::bind(&FFmpegClip::update, std::ref(*this)) )
 	, Signal::SourceLayout<Video>((*this)->videoOut.getOutput())
 {
 	//Add the output
