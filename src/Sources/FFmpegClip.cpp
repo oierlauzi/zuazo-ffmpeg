@@ -50,9 +50,9 @@ struct FFmpegClipImpl {
 			routePacketStream(demuxer, videoDecoder, videoStreamIndex);
 			routePacketStream(demuxer, audioDecoder, audioStreamIndex);
 
-			//Enable multithreading
-			enableMultithreading(videoDecoder);
-			enableMultithreading(audioDecoder);
+			//Enable multithreading and HW acceleration
+			configure(videoDecoder);
+			configure(audioDecoder);
 
 			//Open them
 			open(videoDecoder, videoStreamIndex);
@@ -181,9 +181,10 @@ struct FFmpegClipImpl {
 			}
 		}
 
-		static void enableMultithreading(Processors::FFmpegDecoder& decoder) {
+		static void configure(Processors::FFmpegDecoder& decoder) {
+			decoder.setHardwareAccelerationEnabled(true); //Use hardware accel if possible
 			decoder.setThreadCount(0); //Use all available threads
-			decoder.setThreadType(FFmpeg::ThreadType::FRAME); //Don't care the delay
+			decoder.setThreadType(FFmpeg::ThreadType::FRAME); //Don't care about the delay
 		}
 
 		static bool isValidIndex(int index) {

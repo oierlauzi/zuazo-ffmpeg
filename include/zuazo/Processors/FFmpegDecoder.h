@@ -41,6 +41,8 @@ public:
 	void							setCodecParameters(FFmpeg::CodecParameters codecPar);
 	const FFmpeg::CodecParameters& 	getCodecParameters() const;	
 
+	void							setHardwareAccelerationEnabled(bool ena);
+	bool							getHardwareAccelerationEnabled() const;
 	FFmpeg::HWDeviceType			getHardwareDeviceType() const;
 
 	void							setThreadType(FFmpeg::ThreadType type);

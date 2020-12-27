@@ -38,6 +38,7 @@ struct FFmpegDecoderImpl {
 		inline static const auto flushPacket = FFmpeg::Packet();
 
 		Open(	const FFmpeg::CodecParameters& codecPar,
+				bool hwAccelEnabled,
 				FFmpeg::ThreadType threadType,
 				int threadCount, 
 				void* opaque ) 
@@ -54,7 +55,9 @@ struct FFmpegDecoderImpl {
 			codecContext.setPixelFormatNegotiationCallback(FFmpegDecoderImpl::pixelFormatNegotiationCallback);
 
 			//Set the hardware device
-			static_cast<AVCodecContext*>(codecContext)->hw_device_ctx = createHwDeviceContext(codec);
+			if(hwAccelEnabled) {
+				static_cast<AVCodecContext*>(codecContext)->hw_device_ctx = createHwDeviceContext(codec);
+			}
 
 			//Enable the multithreading
 			codecContext.setThreadCount(threadCount);
@@ -84,7 +87,7 @@ struct FFmpegDecoderImpl {
 
 					assert(packetQueue.front());
 					if(codecContext.sendPacket(*packetQueue.front()) == 0) {
-						//Succeded sending this packet. Remove it from the queue
+						//Succeeded sending this packet. Remove it from the queue
 						packetQueue.pop();
 					}
 
@@ -149,6 +152,7 @@ struct FFmpegDecoderImpl {
 	Output							frameOut;
 
 	FFmpeg::CodecParameters			codecParameters;
+	bool							hwAccelEnabled;
 	FFmpeg::ThreadType				threadType;
 	int								threadCount;
 
@@ -163,6 +167,7 @@ struct FFmpegDecoderImpl {
 						FFmpegDecoder::DemuxCallback demuxCbk) 
 		: owner(owner)
 		, codecParameters(std::move(codecPar))
+		, hwAccelEnabled(false)
 		, threadType(FFmpeg::ThreadType::NONE)
 		, threadCount(1)
 		, pixFmtCallback(std::move(pixFmtCbk))
@@ -183,6 +188,7 @@ struct FFmpegDecoderImpl {
 
 		opened = Utils::makeUnique<Open>(
 			codecParameters, 
+			hwAccelEnabled,
 			threadType,
 			threadCount, 
 			this
@@ -222,6 +228,15 @@ struct FFmpegDecoderImpl {
 
 	const FFmpeg::CodecParameters& getCodecParameters() const {
 		return codecParameters;
+	}
+
+
+	void setHardwareAccelerationEnabled(bool ena) {
+		hwAccelEnabled = ena;
+	}
+
+	bool getHardwareAccelerationEnabled() const {
+		return hwAccelEnabled;
 	}
 
 	FFmpeg::HWDeviceType getHardwareDeviceType() const {
@@ -339,9 +354,19 @@ const FFmpeg::CodecParameters& FFmpegDecoder::getCodecParameters() const {
 	return (*this)->getCodecParameters();
 }
 
+
+void FFmpegDecoder::setHardwareAccelerationEnabled(bool ena) {
+	(*this)->setHardwareAccelerationEnabled(ena);
+}
+
+bool FFmpegDecoder::getHardwareAccelerationEnabled() const {
+	return (*this)->getHardwareAccelerationEnabled();
+}
+
 FFmpeg::HWDeviceType FFmpegDecoder::getHardwareDeviceType() const {
 	return (*this)->getHardwareDeviceType();
 }
+
 
 void FFmpegDecoder::setThreadType(FFmpeg::ThreadType type) {
 	(*this)->setThreadType(type);
