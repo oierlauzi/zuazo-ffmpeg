@@ -2,71 +2,108 @@
  * This example shows how to buil a simple video switcher
  * 
  * How to compile:
- * c++ 01\ -\ Switcher.cpp -std=c++17 -Wall -Wextra -lzuazo -lzuazo-window -lzuazo-ffmpeg -lavutil -lavformat -lswscale -lavcodec -lglfw -ldl -lpthread
+ * c++ 01\ -\ Switcher.cpp -std=c++17 -Wall -Wextra -lzuazo -lzuazo-window -lzuazo-ffmpeg -lzuazo-compositor -lglfw -ldl -lpthread -lavutil -lavformat -lavcodec -lswscale
  */
 
 
 #include <zuazo/Instance.h>
+#include <zuazo/Player.h>
 #include <zuazo/Modules/Window.h>
-#include <zuazo/Modules/FFmpeg.h>
-#include <zuazo/Consumers/Window.h>
+#include <zuazo/Consumers/WindowRenderer.h>
+#include <zuazo/Processors/Layers/VideoSurface.h>
 #include <zuazo/Sources/FFmpegClip.h>
 
 #include <mutex>
 #include <iostream>
 
-template<typename T>
-void cut(Zuazo::Signal::Layout::PadProxy<Zuazo::Signal::Input<T>>& dst1, Zuazo::Signal::Layout::PadProxy<Zuazo::Signal::Input<T>>& dst2) {
-	//Query the sources
-	auto* src1 = dst1.getSource();
-	auto* src2 = dst2.getSource();
-
-	//Swap them
-	std::swap(src1, src2);
-
-	//Write the new sources
-	dst1.setSource(src1);
-	dst2.setSource(src2);
-}
-
-
 
 int main(int argc, const char** argv) {
-	//Instantiate Zuazo as usual. Note that FFmpeg module is loaded 
-	Zuazo::Instance::ApplicationInfo appInfo (
-		"FFmpeg Example 00",						//Application's name
+	//Instantiate Zuazo as usual. Note that we're loading the Window module
+	Zuazo::Instance::ApplicationInfo appInfo(
+		"FFmpeg Example 01",						//Application's name
 		Zuazo::Version(0, 1, 0),					//Application's version
 		Zuazo::Verbosity::GEQ_INFO,					//Verbosity 
-		{ 	Zuazo::Modules::Window::get(), 			//Modules
-			Zuazo::Modules::FFmpeg::get() }
+		{ Zuazo::Modules::Window::get() }			//Modules
 	);
 	Zuazo::Instance instance(std::move(appInfo));
 	std::unique_lock<Zuazo::Instance> lock(instance);
 
-	//Construct the desired video mode
-	const Zuazo::VideoMode videoMode = Zuazo::makeVideoMode(Zuazo::Rate(60, 1)); //Just specify the desired rate
+	//Construct the desired parameters
+	const Zuazo::VideoMode videoMode(
+		Zuazo::Utils::MustBe<Zuazo::Rate>(Zuazo::Rate(25, 1)), //Just specify the desired rate
+		Zuazo::Utils::Any<Zuazo::Resolution>(),
+		Zuazo::Utils::Any<Zuazo::AspectRatio>(),
+		Zuazo::Utils::Any<Zuazo::ColorPrimaries>(),
+		Zuazo::Utils::Any<Zuazo::ColorModel>(),
+		Zuazo::Utils::Any<Zuazo::ColorTransferFunction>(),
+		Zuazo::Utils::Any<Zuazo::ColorSubsampling>(),
+		Zuazo::Utils::Any<Zuazo::ColorRange>(),
+		Zuazo::Utils::Any<Zuazo::ColorFormat>()	
+	);
+
+	const Zuazo::Utils::Limit<Zuazo::DepthStencilFormat> depthStencil(
+		Zuazo::Utils::MustBe<Zuazo::DepthStencilFormat>(Zuazo::DepthStencilFormat::NONE) //Not interested in the depth buffer
+	);
+
+	const auto windowSize = Zuazo::Math::Vec2i(1280, 720);
+
+	const auto& monitor = Zuazo::Consumers::WindowRenderer::NO_MONITOR; //Not interested in the full-screen mode
 
 	//Construct the window objects
-	Zuazo::Consumers::Window pgmWindow(
+	Zuazo::Consumers::WindowRenderer pgmWindow(
 		instance, 						//Instance
 		"Program Output Window",		//Layout name
 		videoMode,						//Video mode limits
-		Zuazo::Math::Vec2i(1280, 720),	//Window size (in screen coordinates)
-		Zuazo::Consumers::Window::NO_MONITOR //No monitor
+		depthStencil,					//Depth buffer limits
+		windowSize,						//Window size (in screen coordinates)
+		monitor							//Monitor for setting fullscreen
 	);
-	pgmWindow.setWindowName("Program"); //The actual displayed name
-	pgmWindow.setScalingMode(Zuazo::ScalingMode::BOXED);
 
-	Zuazo::Consumers::Window pvwWindow(
+	pgmWindow.setWindowName(pgmWindow.getName());
+	pgmWindow.setResizeable(false); //Disable resizeing, as extra care needs to be taken
+	pgmWindow.open();
+
+	Zuazo::Consumers::WindowRenderer pvwWindow(
 		instance, 						//Instance
-		"Preview Output Window",		//Layout name
+		"Program Output Window",		//Layout name
 		videoMode,						//Video mode limits
-		Zuazo::Math::Vec2i(1280, 720),	//Window size (in screen coordinates)
-		Zuazo::Consumers::Window::NO_MONITOR //No monitor
+		depthStencil,					//Depth buffer limits
+		windowSize,						//Window size (in screen coordinates)
+		monitor							//Monitor for setting fullscreen
 	);
-	pvwWindow.setWindowName("Preview");
-	pvwWindow.setScalingMode(Zuazo::ScalingMode::BOXED);
 
+	pvwWindow.setWindowName(pvwWindow.getName());
+	pvwWindow.setResizeable(false); //Disable resizeing, as extra care needs to be taken
+	pvwWindow.open();
+
+	//Create a layer for each window
+	Zuazo::Processors::Layers::VideoSurface pgmVideoSurface(
+		instance,
+		"Program Video Surface",
+		&pgmWindow,
+		pgmWindow.getVideoMode().getResolutionValue()
+	);
+
+	pgmWindow.setLayers({pgmVideoSurface});
+	pgmVideoSurface.setScalingMode(Zuazo::ScalingMode::BOXED);
+	pgmVideoSurface.setScalingFilter(Zuazo::ScalingFilter::CUBIC);
+
+	Zuazo::Processors::Layers::VideoSurface pvwVideoSurface(
+		instance,
+		"Program Video Surface",
+		&pvwWindow,
+		pvwWindow.getVideoMode().getResolutionValue()
+	);
+
+	pvwWindow.setLayers({pvwVideoSurface});
+	pvwVideoSurface.setScalingMode(Zuazo::ScalingMode::BOXED);
+	pvwVideoSurface.setScalingFilter(Zuazo::ScalingFilter::CUBIC);
+
+	//Create a player for each window
+	Zuazo::Player pgmPlayer(instance);
+	pgmPlayer.enable();
+	Zuazo::Player pvwPlayer(instance);
+	pvwPlayer.enable();
 
 	//Create a FFmpegClip object array
 	std::vector<Zuazo::Sources::FFmpegClip> clips;
@@ -82,58 +119,79 @@ int main(int argc, const char** argv) {
 
 
 	//Configure the callbacks
-	const auto keyCallback = [&pgmWindow, &pvwWindow, &clips] (	Zuazo::Consumers::Window&, 
-																Zuazo::Consumers::Window::KeyboardKey key, 
-																Zuazo::Consumers::Window::KeyboardEvent event, 
-																Zuazo::Consumers::Window::KeyboardModifiers)
+	const auto keyCallback = [&pgmVideoSurface, &pgmPlayer, &pvwVideoSurface, &pvwPlayer,  &clips] (Zuazo::Consumers::WindowRenderer&, 
+																									Zuazo::KeyboardKey key, 
+																									Zuazo::KeyEvent event, 
+																									Zuazo::KeyModifiers)
 	{
-		if(event == Zuazo::Consumers::Window::KeyboardEvent::PRESS) {
+		auto& pgmIn = pgmVideoSurface.getInput();
+		auto& pvwIn = pvwVideoSurface.getInput();
+
+		if(event == Zuazo::KeyEvent::PRESS) {
 			//We only care for presses
 			switch(key) {
-			case Zuazo::Consumers::Window::KeyboardKey::ENTER:
-				//Cut
-				cut(Zuazo::Signal::getInput<Zuazo::Video>(pgmWindow), Zuazo::Signal::getInput<Zuazo::Video>(pvwWindow));
+			case Zuazo::KeyboardKey::ENTER:
+				{
+					auto* auxSrc = pgmIn.getSource();
+					auto* auxClip = pgmPlayer.getClip();
+
+					pgmIn.setSource(pvwIn.getSource());
+					pgmPlayer.setClip(pvwPlayer.getClip());
+					pvwIn.setSource(auxSrc);
+					pvwPlayer.setClip(auxClip);
+				}
 				break;
 
-			case Zuazo::Consumers::Window::KeyboardKey::F1:
-			case Zuazo::Consumers::Window::KeyboardKey::F2:
-			case Zuazo::Consumers::Window::KeyboardKey::F3:
-			case Zuazo::Consumers::Window::KeyboardKey::F4:
-			case Zuazo::Consumers::Window::KeyboardKey::F5:
-			case Zuazo::Consumers::Window::KeyboardKey::F6:
-			case Zuazo::Consumers::Window::KeyboardKey::F7:
-			case Zuazo::Consumers::Window::KeyboardKey::F8:
-			case Zuazo::Consumers::Window::KeyboardKey::F9:
-			case Zuazo::Consumers::Window::KeyboardKey::F10:
+
+			case Zuazo::KeyboardKey::F1:
+			case Zuazo::KeyboardKey::F2:
+			case Zuazo::KeyboardKey::F3:
+			case Zuazo::KeyboardKey::F4:
+			case Zuazo::KeyboardKey::F5:
+			case Zuazo::KeyboardKey::F6:
+			case Zuazo::KeyboardKey::F7:
+			case Zuazo::KeyboardKey::F8:
+			case Zuazo::KeyboardKey::F9:
+			case Zuazo::KeyboardKey::F10:
 				//Switch program
 				{
-					const auto index = static_cast<int>(key) - static_cast<int>(Zuazo::Consumers::Window::KeyboardKey::F1);
+					const auto index = static_cast<int>(key) - static_cast<int>(Zuazo::KeyboardKey::F1);
 					if(Zuazo::Math::isInRange(index, 0, static_cast<int>(clips.size() - 1))) {
-						Zuazo::Signal::getInput<Zuazo::Video>(pgmWindow) << Zuazo::Signal::getOutput<Zuazo::Video>(clips[index]);
+						pgmIn << clips[index].getOutput();
+						if(pvwPlayer.getClip() != &clips[index]) {
+							//It should be active in only one player
+							pgmPlayer.setClip(&clips[index]);
+						}
 					} else {
-						Zuazo::Signal::getInput<Zuazo::Video>(pgmWindow) << Zuazo::Signal::noSignal;
+						pgmIn << Zuazo::Signal::noSignal;
+						pgmPlayer.setClip(nullptr);
 					}
 				}
 				break;
 
 
-			case Zuazo::Consumers::Window::KeyboardKey::NB0:
-			case Zuazo::Consumers::Window::KeyboardKey::NB1:
-			case Zuazo::Consumers::Window::KeyboardKey::NB2:
-			case Zuazo::Consumers::Window::KeyboardKey::NB3:
-			case Zuazo::Consumers::Window::KeyboardKey::NB4:
-			case Zuazo::Consumers::Window::KeyboardKey::NB5:
-			case Zuazo::Consumers::Window::KeyboardKey::NB6:
-			case Zuazo::Consumers::Window::KeyboardKey::NB7:
-			case Zuazo::Consumers::Window::KeyboardKey::NB8:
-			case Zuazo::Consumers::Window::KeyboardKey::NB9:
+			case Zuazo::KeyboardKey::NB0:
+			case Zuazo::KeyboardKey::NB1:
+			case Zuazo::KeyboardKey::NB2:
+			case Zuazo::KeyboardKey::NB3:
+			case Zuazo::KeyboardKey::NB4:
+			case Zuazo::KeyboardKey::NB5:
+			case Zuazo::KeyboardKey::NB6:
+			case Zuazo::KeyboardKey::NB7:
+			case Zuazo::KeyboardKey::NB8:
+			case Zuazo::KeyboardKey::NB9:
 				//Switch preview
 				{
-					const auto index = static_cast<int>(key) - static_cast<int>(Zuazo::Consumers::Window::KeyboardKey::NB1);
+					const auto index = static_cast<int>(key) - static_cast<int>(Zuazo::KeyboardKey::NB1);
 					if(Zuazo::Math::isInRange(index, 0, static_cast<int>(clips.size() - 1))) {
-						Zuazo::Signal::getInput<Zuazo::Video>(pvwWindow) << Zuazo::Signal::getOutput<Zuazo::Video>(clips[index]);
+						pvwIn << clips[index].getOutput();
+						if(pgmPlayer.getClip() != &clips[index]) {
+							//It should be active in only one player
+							pvwPlayer.setClip(&clips[index]);
+						}
 					} else {
-						Zuazo::Signal::getInput<Zuazo::Video>(pvwWindow) << Zuazo::Signal::noSignal;
+						pvwIn << Zuazo::Signal::noSignal;
+						pvwPlayer.setClip(nullptr);
 					}
 				}
 				break;
@@ -149,10 +207,9 @@ int main(int argc, const char** argv) {
 
 	pgmWindow.setKeyboardCallback(keyCallback);
 	pvwWindow.setKeyboardCallback(keyCallback);
-
-	//Open the windows (now becomes visible)
-	pgmWindow.open();
-	pvwWindow.open();
+	
+	pgmVideoSurface.open();
+	pvwVideoSurface.open();
 
 	//Open the video files and, them into repeat mode and playing
 	for(auto& clip : clips) {
