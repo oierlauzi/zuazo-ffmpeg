@@ -63,9 +63,20 @@ struct FFmpegClipImpl {
 
 		void decode(TimePoint targetTimeStamp) {
 			const auto streams = demuxer.getStreams();
-			
-			decodedTimeStamp = Math::max(decodedTimeStamp, decode(videoDecoder, videoStreamIndex, streams, targetTimeStamp));
-			decodedTimeStamp = Math::max(decodedTimeStamp, decode(audioDecoder, audioStreamIndex, streams, targetTimeStamp));
+
+			auto newDecodedTimeStamp = TimePoint::max();
+			if(isValidIndex(videoStreamIndex)) {
+				newDecodedTimeStamp = Math::min(newDecodedTimeStamp, decode(videoDecoder, videoStreamIndex, streams, targetTimeStamp));
+			}
+			if(isValidIndex(audioStreamIndex)) {
+				newDecodedTimeStamp = Math::min(newDecodedTimeStamp, decode(audioDecoder, audioStreamIndex, streams, targetTimeStamp));
+			}
+
+			decodedTimeStamp = newDecodedTimeStamp;
+
+
+			//decodedTimeStamp = Math::max(decodedTimeStamp, decode(videoDecoder, videoStreamIndex, streams, targetTimeStamp));
+			//decodedTimeStamp = Math::max(decodedTimeStamp, decode(audioDecoder, audioStreamIndex, streams, targetTimeStamp));
 		}
 
 		void flush() {
@@ -194,10 +205,10 @@ struct FFmpegClipImpl {
 		static TimePoint calculateTimeStamp(const FFmpeg::StreamParameters& stream, const FFmpeg::Frame& frame) {
 			const auto pts = frame.getPTS();
 			const auto dur = frame.getPacketDuration();
-			const auto timeStamp = pts + (dur > 0 ? dur - 1 : 0);
+			const auto timeStamp = pts + dur;
 
 			const auto timeBase = stream.getTimeBase();
-			const auto rescaledTimeStamp = av_rescale_q(
+			const auto rescaledTimeStamp = (dur != 0 ? -1 : 0) + av_rescale_q(
 				timeStamp, 
 				AVRational{ timeBase.getNumerator(), timeBase.getDenominator() },	//Src time base
 				AVRational{ Duration::period::num, Duration::period::den }			//Dst time-base
@@ -297,11 +308,12 @@ struct FFmpegClipImpl {
 			auto& clip = owner.get();
 
 			const auto targetTimeStamp = clip.getTime();
-			const auto delta = targetTimeStamp - opened->decodedTimeStamp;
 			const auto framePeriod = getPeriod(opened->getFrameRate());
+			const auto delta = targetTimeStamp - opened->decodedTimeStamp;
+			const auto frameDelta = delta / framePeriod;
+			
 			constexpr Duration::rep MAX_UNSKIPPED_FRAMES = 16; //TODO find a way to obtain it from the codec GOP
-
-			if(delta < -framePeriod || delta > framePeriod * MAX_UNSKIPPED_FRAMES) {
+			if(frameDelta < 0 || frameDelta > MAX_UNSKIPPED_FRAMES) {
 				//Time has gone back!
 				demuxer.seek(
 					std::chrono::duration_cast<FFmpeg::Duration>(targetTimeStamp.time_since_epoch()), 
