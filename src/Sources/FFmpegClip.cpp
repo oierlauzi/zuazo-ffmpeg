@@ -12,6 +12,9 @@
 
 #include <memory>
 #include <utility>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 extern "C" {
 	#include <libavutil/avutil.h>
@@ -34,7 +37,15 @@ struct FFmpegClipImpl {
 		Processors::FFmpegDecoder 	videoDecoder;
 		Processors::FFmpegDecoder 	audioDecoder;
 
+		TimePoint					targetTimeStamp;
 		TimePoint					decodedTimeStamp;
+
+		std::thread					decodingThread;
+		std::mutex					decodingMutex;
+		std::condition_variable		decodingStartCond;
+		std::condition_variable		decodingFinishCond;
+		bool						decodingComplete;
+		bool						decodingThreadExit;
 
 		static constexpr auto NO_TS = TimePoint(Duration(-1));
 
@@ -45,6 +56,8 @@ struct FFmpegClipImpl {
 			, videoDecoder(demuxer.getInstance(), "Video Decoder", getCodecParameters(demuxer, videoStreamIndex), Open::pixelFormatNegotiationCallback,	createDemuxCallback(videoStreamIndex))
 			, audioDecoder(demuxer.getInstance(), "Audio Decoder", getCodecParameters(demuxer, audioStreamIndex), {}, 									createDemuxCallback(audioStreamIndex))
 			, decodedTimeStamp(NO_TS)
+			, decodingComplete(false)
+			, decodingThreadExit(false)
 		{
 			//Route all the signals
 			routePacketStream(demuxer, videoDecoder, videoStreamIndex);
@@ -57,33 +70,37 @@ struct FFmpegClipImpl {
 			//Open them
 			open(videoDecoder, videoStreamIndex);
 			open(audioDecoder, audioStreamIndex);
+
+			//Start the thread
+			decodingThread = std::thread(&Open::decodingThreadFunc, std::ref(*this));
 		}
 
-		~Open() = default;
-
-		void decode(TimePoint targetTimeStamp) {
-			const auto streams = demuxer.getStreams();
-
-			auto newDecodedTimeStamp = TimePoint::max();
-			if(isValidIndex(videoStreamIndex)) {
-				newDecodedTimeStamp = Math::min(newDecodedTimeStamp, decode(videoDecoder, videoStreamIndex, streams, targetTimeStamp));
-			}
-			if(isValidIndex(audioStreamIndex)) {
-				newDecodedTimeStamp = Math::min(newDecodedTimeStamp, decode(audioDecoder, audioStreamIndex, streams, targetTimeStamp));
-			}
-
-			decodedTimeStamp = newDecodedTimeStamp;
-
-
-			//decodedTimeStamp = Math::max(decodedTimeStamp, decode(videoDecoder, videoStreamIndex, streams, targetTimeStamp));
-			//decodedTimeStamp = Math::max(decodedTimeStamp, decode(audioDecoder, audioStreamIndex, streams, targetTimeStamp));
+		~Open() {
+			//Wait until the thread dies
+			std::unique_lock<std::mutex> lock(decodingMutex);
+			decodingThreadExit = true;
+			decodingStartCond.notify_all();
+			lock.unlock();
+			decodingThread.join();
 		}
 
-		void flush() {
-			demuxer.flush();
-			flush(videoDecoder, videoStreamIndex);
-			flush(audioDecoder, audioStreamIndex);
-			decodedTimeStamp = NO_TS;
+		void decode(TimePoint target) {
+			std::lock_guard<std::mutex> lock(decodingMutex);
+
+			//Start decoding
+			decodingComplete = false;
+			targetTimeStamp = target;
+			decodingStartCond.notify_all();
+		}
+
+		bool waitDecode() {
+			std::unique_lock<std::mutex> lock(decodingMutex);
+
+			while(!decodingComplete) {
+				decodingFinishCond.wait(lock);
+			}
+
+			return decodedTimeStamp >= targetTimeStamp;
 		}
 
 		Rate getFrameRate() {
@@ -92,6 +109,45 @@ struct FFmpegClipImpl {
 		}
 
 	private:
+		void decodingThreadFunc() {
+			std::unique_lock<std::mutex> lock(decodingMutex);
+
+			while(!decodingThreadExit) {
+				//Evaluate if flushing is needed
+				const auto framePeriod = getPeriod(getFrameRate());
+				const auto delta = targetTimeStamp - decodedTimeStamp;
+				const auto frameDelta = delta / framePeriod;
+			
+				constexpr Duration::rep MAX_UNSKIPPED_FRAMES = 16; //TODO find a way to obtain it from the codec GOP
+				if(frameDelta < 0 || frameDelta > MAX_UNSKIPPED_FRAMES) {
+					//Time delta is too high, seek the demuxer and flush all buffers
+					demuxer.seek(
+						std::chrono::duration_cast<FFmpeg::Duration>(targetTimeStamp.time_since_epoch()), 
+						FFmpeg::SeekFlags::BACKWARD
+					);
+
+					demuxer.flush();
+					flush(videoDecoder, videoStreamIndex);
+					flush(audioDecoder, audioStreamIndex);
+				}
+
+				//Decode
+				const auto streams = demuxer.getStreams();
+				decodedTimeStamp = TimePoint::max();
+				if(isValidIndex(videoStreamIndex)) {
+					decodedTimeStamp = Math::min(decodedTimeStamp, decode(videoDecoder, videoStreamIndex, streams, targetTimeStamp));
+				}
+				if(isValidIndex(audioStreamIndex)) {
+					decodedTimeStamp = Math::min(decodedTimeStamp, decode(audioDecoder, audioStreamIndex, streams, targetTimeStamp));
+				}
+
+				//Wait until decoding is signaled
+				decodingComplete = true;
+				decodingFinishCond.notify_all();
+				decodingStartCond.wait(lock);
+			}
+		}
+
 		void demuxCallback(int index) {
 			assert(isValidIndex(index));
 
@@ -259,12 +315,15 @@ struct FFmpegClipImpl {
 	{
 		//Route the output signal
 		videoOut << videoUploader;
+		videoUploader.setPreUpdateCallback(std::bind(&FFmpegClipImpl::uploaderPreUpdateCallback, std::ref(*this)));
 	}
 
 	~FFmpegClipImpl() = default;
 
 	void moved(ZuazoBase& base) {
 		owner = static_cast<FFmpegClip&>(base);
+		auto& clip = static_cast<FFmpegClip&>(base);
+		clip.setRefreshCallback(std::bind(&FFmpegClip::update, std::ref(clip)));
 	}
 
 	void open(ZuazoBase& base) {
@@ -286,8 +345,6 @@ struct FFmpegClipImpl {
 			: Duration::max()
 		);
 		clip.setTimeStep(getPeriod(opened->getFrameRate()));
-
-		update(); //Ensure that the first frame has been decoded
 	}
 
 	void close(ZuazoBase& base) {
@@ -306,27 +363,7 @@ struct FFmpegClipImpl {
 	void update() {
 		if(opened) {
 			auto& clip = owner.get();
-
-			const auto targetTimeStamp = clip.getTime();
-			const auto framePeriod = getPeriod(opened->getFrameRate());
-			const auto delta = targetTimeStamp - opened->decodedTimeStamp;
-			const auto frameDelta = delta / framePeriod;
-			
-			constexpr Duration::rep MAX_UNSKIPPED_FRAMES = 16; //TODO find a way to obtain it from the codec GOP
-			if(frameDelta < 0 || frameDelta > MAX_UNSKIPPED_FRAMES) {
-				//Time has gone back!
-				demuxer.seek(
-					std::chrono::duration_cast<FFmpeg::Duration>(targetTimeStamp.time_since_epoch()), 
-					FFmpeg::SeekFlags::BACKWARD
-				);
-				opened->flush();
-			}
-
-			opened->decode(targetTimeStamp);
-			if(opened->decodedTimeStamp < targetTimeStamp) {
-				//Could not decode til the end
-				clip.setDuration(opened->decodedTimeStamp.time_since_epoch());
-			}
+			opened->decode(clip.getTime());
 		}
 	}
 
@@ -352,6 +389,19 @@ struct FFmpegClipImpl {
 		//Update the compatibility in the VideoBase
 		owner.get().setVideoModeCompatibility(std::move(compatibility));
 	}
+
+private:
+	void uploaderPreUpdateCallback() {
+		//Ensure the decoding has finished before pulling a frame
+		assert(opened);
+
+		auto& clip = owner.get();
+		if(!opened->waitDecode()) {
+			//Could not decode til the end
+			clip.setDuration(opened->decodedTimeStamp.time_since_epoch());
+		}
+	}
+
 };
 
 
