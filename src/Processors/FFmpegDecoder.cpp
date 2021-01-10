@@ -185,6 +185,7 @@ struct FFmpegDecoderImpl {
 	void open(ZuazoBase& base) {
 		const auto& decoder = static_cast<FFmpegDecoder&>(base);
 		assert(&decoder == &owner.get()); (void)(decoder);
+		assert(!opened);
 
 		opened = Utils::makeUnique<Open>(
 			codecParameters, 
@@ -195,13 +196,56 @@ struct FFmpegDecoderImpl {
 		);
 	}
 
+	void asyncOpen(ZuazoBase& base, std::unique_lock<Instance>& lock) {
+		const auto& decoder = static_cast<FFmpegDecoder&>(base);
+		assert(&decoder == &owner.get()); (void)(decoder);
+		assert(!opened);
+		assert(lock.owns_lock());
+
+		lock.unlock(); //FIXME, if it throws, lock must be re-locked
+		auto newOpened = Utils::makeUnique<Open>(
+			codecParameters, 
+			hwAccelEnabled,
+			threadType,
+			threadCount, 
+			this
+		);
+		lock.lock();
+
+		opened = std::move(newOpened);
+
+		assert(opened);
+		assert(lock.owns_lock());
+	}
+
 	void close(ZuazoBase& base) {
 		const auto& decoder = static_cast<FFmpegDecoder&>(base);
 		assert(&decoder == &owner.get()); (void)(decoder);
+		assert(opened);
 
 		opened.reset();
 		packetIn.reset();
 		frameOut.reset();
+
+		assert(!opened);
+	}
+
+	void asyncClose(ZuazoBase& base, std::unique_lock<Instance>& lock) {
+		const auto& decoder = static_cast<FFmpegDecoder&>(base);
+		assert(&decoder == &owner.get()); (void)(decoder);
+		assert(opened);
+		assert(lock.owns_lock());
+
+		auto oldOpened = std::move(opened);
+		packetIn.reset();
+		frameOut.reset();
+
+		lock.unlock();
+		oldOpened.reset();
+		lock.lock();
+
+		assert(!opened);
+		assert(lock.owns_lock());
 	}
 
 	void update() {
@@ -323,7 +367,9 @@ FFmpegDecoder::FFmpegDecoder(	Instance& instance,
 		{ (*this)->packetIn, (*this)->frameOut },
 		std::bind(&FFmpegDecoderImpl::moved, std::ref(**this), std::placeholders::_1),
 		std::bind(&FFmpegDecoderImpl::open, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegDecoderImpl::asyncOpen, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegDecoderImpl::close, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegDecoderImpl::asyncClose, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegDecoderImpl::update, std::ref(**this)) )
 	, Signal::ProcessorLayout<FFmpeg::PacketStream, FFmpeg::FrameStream>(makeProxy((*this)->packetIn), makeProxy((*this)->frameOut))
 {

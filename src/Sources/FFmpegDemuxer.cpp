@@ -100,8 +100,8 @@ struct FFmpegDemuxerImpl {
 
 
 	void open(ZuazoBase& base) {
-		assert(!opened);
 		auto& demux = static_cast<FFmpegDemuxer&>(base);
+		assert(!opened);
 
 		opened = Utils::makeUnique<Open>(url.c_str()); //May throw! (nothing has been done yet, so don't worry about cleaning)
 
@@ -109,21 +109,63 @@ struct FFmpegDemuxerImpl {
 		for(auto& pad : opened->pads) {
 			demux.registerPad(pad);
 		}
+
+		assert(opened);
+	}
+
+	void asyncOpen(ZuazoBase& base, std::unique_lock<Instance>& lock) {
+		auto& demux = static_cast<FFmpegDemuxer&>(base);
+		assert(!opened);
+		assert(lock.owns_lock());
+
+		lock.unlock(); //FIXME, if it throws, lock must be re-locked
+		auto newOpened = Utils::makeUnique<Open>(url.c_str()); //May throw! (nothing has been done yet, so don't worry about cleaning)
+		lock.lock();
+		
+		opened = std::move(newOpened);
+		for(auto& pad : opened->pads) {
+			demux.registerPad(pad);
+		}
+
+		assert(opened);
+		assert(lock.owns_lock());
 	}
 
 	void close(ZuazoBase& base) {
-		assert(opened);
 		auto& demux = static_cast<FFmpegDemuxer&>(base);
+		assert(opened);
 
 		for(auto& pad : opened->pads) {
 			demux.removePad(pad);
 		}
-
+		
 		opened.reset();
+
+		assert(!opened);
+	}
+
+	void asyncClose(ZuazoBase& base, std::unique_lock<Instance>& lock) {
+		auto& demux = static_cast<FFmpegDemuxer&>(base);
+		assert(opened);
+		assert(lock.owns_lock());
+
+		for(auto& pad : opened->pads) {
+			demux.removePad(pad);
+		}
+		auto oldOpened = std::move(opened);
+
+		lock.unlock();
+		oldOpened.reset();
+		lock.lock();
+
+		assert(!opened);
+		assert(lock.owns_lock());
 	}
 
 	void update() {
-		if(opened) opened->update();
+		if(opened) {
+			opened->update();
+		}
 	}
 
 
@@ -187,7 +229,9 @@ FFmpegDemuxer::FFmpegDemuxer(Instance& instance, std::string name, std::string u
 		{},
 		ZuazoBase::MoveCallback(),
 		std::bind(&FFmpegDemuxerImpl::open, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegDemuxerImpl::asyncOpen, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegDemuxerImpl::close, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegDemuxerImpl::asyncClose, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegDemuxerImpl::update, std::ref(**this)) )
 {
 }

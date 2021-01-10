@@ -327,30 +327,49 @@ struct FFmpegClipImpl {
 	}
 
 	void open(ZuazoBase& base) {
-		assert(!opened);
 		auto& clip = static_cast<FFmpegClip&>(base);
 		assert(&owner.get() == &clip);
+		assert(!opened);
 
 		demuxer.open(); //May throw! (nothing has been done yet, so don't worry about cleaning)
 		videoUploader.open();
 		opened = Utils::makeUnique<Open>(demuxer);
-		assert(opened);
 
 		//Route the decoder signal
 		videoUploader << opened->videoDecoder;
 
-		clip.setDuration(
-			demuxer.getDuration() != FFmpeg::Duration() 
-			? std::chrono::duration_cast<Duration>(demuxer.getDuration()) 
-			: Duration::max()
-		);
+		clip.setDuration(calculateDuration(demuxer));
 		clip.setTimeStep(getPeriod(opened->getFrameRate()));
+
+		assert(opened);
+	}
+
+	void asyncOpen(ZuazoBase& base, std::unique_lock<Instance>& lock) {
+		auto& clip = static_cast<FFmpegClip&>(base);
+		assert(&owner.get() == &clip);
+		assert(!opened);
+
+		//Open asynchronously
+		demuxer.asyncOpen(lock); //May throw! (nothing has been done yet, so don't worry about cleaning)
+		videoUploader.asyncOpen(lock);
+
+		//Open the decoders
+		opened = Utils::makeUnique<Open>(demuxer); //TODO create asynchronously
+
+		//Route the decoder signal
+		videoUploader << opened->videoDecoder;
+
+		clip.setDuration(calculateDuration(demuxer));
+		clip.setTimeStep(getPeriod(opened->getFrameRate()));
+
+		assert(opened);
+		assert(lock.owns_lock());
 	}
 
 	void close(ZuazoBase& base) {
-		assert(opened);
 		auto& clip = static_cast<FFmpegClip&>(base);
 		assert(&owner.get() == &clip);
+		assert(opened);
 
 		clip.setDuration(Duration::max());
 		clip.setTimeStep(Duration());
@@ -358,6 +377,25 @@ struct FFmpegClipImpl {
 		opened.reset();
 		videoUploader.close();
 		demuxer.close();
+
+		assert(!opened);
+	}
+
+	void asyncClose(ZuazoBase& base, std::unique_lock<Instance>& lock) {
+		auto& clip = static_cast<FFmpegClip&>(base);
+		assert(&owner.get() == &clip);
+		assert(opened);
+
+		clip.setDuration(Duration::max());
+		clip.setTimeStep(Duration());
+
+		opened.reset(); //TODO reset asynchronously
+
+		videoUploader.asyncClose(lock);
+		demuxer.asyncClose(lock);
+
+		assert(!opened);
+		assert(lock.owns_lock());
 	}
 
 	void update() {
@@ -402,6 +440,10 @@ private:
 		}
 	}
 
+	static Duration calculateDuration(FFmpegDemuxer& demux) {
+		return demux.getDuration() != FFmpeg::Duration() ? std::chrono::duration_cast<Duration>(demux.getDuration()) : Duration::max();
+	}
+
 };
 
 
@@ -420,7 +462,9 @@ FFmpegClip::FFmpegClip(	Instance& instance,
 		{},
 		std::bind(&FFmpegClipImpl::moved, std::ref(**this), std::placeholders::_1),
 		std::bind(&FFmpegClipImpl::open, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegClipImpl::asyncOpen, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegClipImpl::close, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegClipImpl::asyncClose, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegClipImpl::update, std::ref(**this)) )
 	, VideoBase(
 		std::move(videoMode),

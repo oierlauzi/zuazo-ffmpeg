@@ -61,7 +61,7 @@ int main(int argc, const char** argv) {
 
 	pgmWindow.setWindowName(pgmWindow.getName());
 	pgmWindow.setResizeable(false); //Disable resizeing, as extra care needs to be taken
-	pgmWindow.open();
+	pgmWindow.asyncOpen(lock);
 
 	Zuazo::Consumers::WindowRenderer pvwWindow(
 		instance, 						//Instance
@@ -74,7 +74,7 @@ int main(int argc, const char** argv) {
 
 	pvwWindow.setWindowName(pvwWindow.getName());
 	pvwWindow.setResizeable(false); //Disable resizeing, as extra care needs to be taken
-	pvwWindow.open();
+	pvwWindow.asyncOpen(lock);
 
 	//Create a layer for each window
 	Zuazo::Processors::Layers::VideoSurface pgmVideoSurface(
@@ -208,14 +208,14 @@ int main(int argc, const char** argv) {
 	pgmWindow.setKeyboardCallback(keyCallback);
 	pvwWindow.setKeyboardCallback(keyCallback);
 	
-	pgmVideoSurface.open();
-	pvwVideoSurface.open();
+	pgmVideoSurface.asyncOpen(lock);
+	pvwVideoSurface.asyncOpen(lock);
 
 	//Open the video files and, them into repeat mode and playing
 	for(auto& clip : clips) {
-		clip.open();
 		clip.setRepeat(Zuazo::ClipBase::Repeat::REPEAT);
 		clip.play();
+		clip.asyncOpen(lock);
 	}
 
 	//Done!

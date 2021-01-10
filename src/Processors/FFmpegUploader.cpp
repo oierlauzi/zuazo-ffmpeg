@@ -209,9 +209,18 @@ struct FFmpegUploaderImpl {
 	}
 
 	void open(ZuazoBase& base) {
-		assert(!opened);
 		const auto& uploader = static_cast<FFmpegUploader&>(base);
 		assert(&owner.get() == &uploader); (void)(uploader);
+		assert(!opened);
+		//It gets opened with update()
+	}
+
+	void asyncOpen(ZuazoBase& base, std::unique_lock<Instance>& lock) {
+		const auto& uploader = static_cast<FFmpegUploader&>(base);
+		assert(&owner.get() == &uploader); (void)(uploader);
+		assert(!opened);
+		assert(lock.owns_lock());
+		//It gets opened with update()
 	}
 
 	void close(ZuazoBase& base) {
@@ -221,6 +230,27 @@ struct FFmpegUploaderImpl {
 		opened.reset();
 		frameIn.reset();
 		videoOut.reset();
+
+		assert(!opened);
+	}
+
+	void asyncClose(ZuazoBase& base, std::unique_lock<Instance>& lock) {
+		auto& uploader = static_cast<FFmpegUploader&>(base);
+		assert(&uploader == &owner.get()); (void)(uploader);
+		assert(lock.owns_lock());
+
+		auto oldOpened = std::move(opened);
+		frameIn.reset();
+		videoOut.reset();
+
+		if(oldOpened) {
+			lock.unlock();
+			oldOpened.reset();
+			lock.lock();
+		}
+
+		assert(!opened);
+		assert(lock.owns_lock());
 	}
 
 	void update() {
@@ -465,7 +495,9 @@ FFmpegUploader::FFmpegUploader(Instance& instance, std::string name, VideoMode v
 		{ (*this)->frameIn, (*this)->videoOut },
 		std::bind(&FFmpegUploaderImpl::moved, std::ref(**this), std::placeholders::_1),
 		std::bind(&FFmpegUploaderImpl::open, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegUploaderImpl::asyncOpen, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegUploaderImpl::close, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegUploaderImpl::asyncClose, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegUploaderImpl::update, std::ref(**this)) )
 	, VideoBase(
 		std::move(videoMode),
