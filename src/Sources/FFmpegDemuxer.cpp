@@ -99,13 +99,18 @@ struct FFmpegDemuxerImpl {
 	~FFmpegDemuxerImpl() = default;
 
 
-	void open(ZuazoBase& base) {
+	void open(ZuazoBase& base, std::unique_lock<Instance>* lock = nullptr) {
 		auto& demux = static_cast<FFmpegDemuxer&>(base);
 		assert(!opened);
 
-		opened = Utils::makeUnique<Open>(url.c_str()); //May throw! (nothing has been done yet, so don't worry about cleaning)
-
-		assert(opened);
+		//Create in a unlocked environment
+		if(lock) lock->unlock(); //FIXME, if it throws, lock must be re-locked
+		//May throw! (nothing has been done yet, so don't worry about cleaning)
+		auto newOpened = Utils::makeUnique<Open>(url.c_str()); 
+		if(lock) lock->lock();
+		
+		//Apply changes after locking
+		opened = std::move(newOpened);
 		for(auto& pad : opened->pads) {
 			demux.registerPad(pad);
 		}
@@ -114,51 +119,32 @@ struct FFmpegDemuxerImpl {
 	}
 
 	void asyncOpen(ZuazoBase& base, std::unique_lock<Instance>& lock) {
-		auto& demux = static_cast<FFmpegDemuxer&>(base);
-		assert(!opened);
 		assert(lock.owns_lock());
-
-		lock.unlock(); //FIXME, if it throws, lock must be re-locked
-		auto newOpened = Utils::makeUnique<Open>(url.c_str()); //May throw! (nothing has been done yet, so don't worry about cleaning)
-		lock.lock();
-		
-		opened = std::move(newOpened);
-		for(auto& pad : opened->pads) {
-			demux.registerPad(pad);
-		}
-
-		assert(opened);
+		open(base, &lock);
 		assert(lock.owns_lock());
 	}
 
-	void close(ZuazoBase& base) {
+	void close(ZuazoBase& base, std::unique_lock<Instance>* lock = nullptr) {
 		auto& demux = static_cast<FFmpegDemuxer&>(base);
 		assert(opened);
 
-		for(auto& pad : opened->pads) {
-			demux.removePad(pad);
-		}
-		
-		opened.reset();
-
-		assert(!opened);
-	}
-
-	void asyncClose(ZuazoBase& base, std::unique_lock<Instance>& lock) {
-		auto& demux = static_cast<FFmpegDemuxer&>(base);
-		assert(opened);
-		assert(lock.owns_lock());
-
+		//Apply changes while locked
 		for(auto& pad : opened->pads) {
 			demux.removePad(pad);
 		}
 		auto oldOpened = std::move(opened);
 
-		lock.unlock();
+		//Destroy stuff in a unlocked environment
+		if(lock) lock->unlock();
 		oldOpened.reset();
-		lock.lock();
+		if(lock) lock->lock();
 
 		assert(!opened);
+	}
+
+	void asyncClose(ZuazoBase& base, std::unique_lock<Instance>& lock) {
+		assert(lock.owns_lock());
+		close(base, &lock);
 		assert(lock.owns_lock());
 	}
 
@@ -228,9 +214,9 @@ FFmpegDemuxer::FFmpegDemuxer(Instance& instance, std::string name, std::string u
 		std::move(name),
 		{},
 		ZuazoBase::MoveCallback(),
-		std::bind(&FFmpegDemuxerImpl::open, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegDemuxerImpl::open, std::ref(**this), std::placeholders::_1, nullptr),
 		std::bind(&FFmpegDemuxerImpl::asyncOpen, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
-		std::bind(&FFmpegDemuxerImpl::close, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegDemuxerImpl::close, std::ref(**this), std::placeholders::_1, nullptr),
 		std::bind(&FFmpegDemuxerImpl::asyncClose, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegDemuxerImpl::update, std::ref(**this)) )
 {

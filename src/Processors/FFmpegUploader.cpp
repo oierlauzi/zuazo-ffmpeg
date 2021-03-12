@@ -208,48 +208,42 @@ struct FFmpegUploaderImpl {
 		videoOut.setPullCallback(createPullCallback(owner));
 	}
 
-	void open(ZuazoBase& base) {
+	void open(ZuazoBase& base, std::unique_lock<Instance>* lock = nullptr) {
 		const auto& uploader = static_cast<FFmpegUploader&>(base);
 		assert(&owner.get() == &uploader); (void)(uploader);
 		assert(!opened);
+		Utils::ignore(lock); //Just to avoid warnings
 		//It gets opened with update()
 	}
 
 	void asyncOpen(ZuazoBase& base, std::unique_lock<Instance>& lock) {
-		const auto& uploader = static_cast<FFmpegUploader&>(base);
-		assert(&owner.get() == &uploader); (void)(uploader);
-		assert(!opened);
 		assert(lock.owns_lock());
-		//It gets opened with update()
+		open(base, &lock);
+		assert(lock.owns_lock());
 	}
 
-	void close(ZuazoBase& base) {
+	void close(ZuazoBase& base, std::unique_lock<Instance>* lock = nullptr) {
 		auto& uploader = static_cast<FFmpegUploader&>(base);
 		assert(&uploader == &owner.get()); (void)(uploader);
 
-		opened.reset();
+		//Apply changes while locked
+		auto oldOpened = std::move(opened);
 		frameIn.reset();
 		videoOut.reset();
+		
+		//Destroy stuff while unlocked
+		if(oldOpened) {
+			if(lock) lock->unlock();
+			oldOpened.reset();
+			if(lock) lock->lock();
+		}
 
 		assert(!opened);
 	}
 
 	void asyncClose(ZuazoBase& base, std::unique_lock<Instance>& lock) {
-		auto& uploader = static_cast<FFmpegUploader&>(base);
-		assert(&uploader == &owner.get()); (void)(uploader);
 		assert(lock.owns_lock());
-
-		auto oldOpened = std::move(opened);
-		frameIn.reset();
-		videoOut.reset();
-
-		if(oldOpened) {
-			lock.unlock();
-			oldOpened.reset();
-			lock.lock();
-		}
-
-		assert(!opened);
+		close(base, &lock);
 		assert(lock.owns_lock());
 	}
 
@@ -494,9 +488,9 @@ FFmpegUploader::FFmpegUploader(Instance& instance, std::string name, VideoMode v
 		std::move(name),
 		{ (*this)->frameIn, (*this)->videoOut },
 		std::bind(&FFmpegUploaderImpl::moved, std::ref(**this), std::placeholders::_1),
-		std::bind(&FFmpegUploaderImpl::open, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegUploaderImpl::open, std::ref(**this), std::placeholders::_1, nullptr),
 		std::bind(&FFmpegUploaderImpl::asyncOpen, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
-		std::bind(&FFmpegUploaderImpl::close, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegUploaderImpl::close, std::ref(**this), std::placeholders::_1, nullptr),
 		std::bind(&FFmpegUploaderImpl::asyncClose, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegUploaderImpl::update, std::ref(**this)) )
 	, VideoBase(

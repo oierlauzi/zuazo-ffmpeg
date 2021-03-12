@@ -326,32 +326,20 @@ struct FFmpegClipImpl {
 		clip.setRefreshCallback(std::bind(&FFmpegClip::update, std::ref(clip)));
 	}
 
-	void open(ZuazoBase& base) {
+	void open(ZuazoBase& base, std::unique_lock<Instance>* lock = nullptr) {
 		auto& clip = static_cast<FFmpegClip&>(base);
 		assert(&owner.get() == &clip);
 		assert(!opened);
 
-		demuxer.open(); //May throw! (nothing has been done yet, so don't worry about cleaning)
-		videoUploader.open();
-		opened = Utils::makeUnique<Open>(demuxer);
-
-		//Route the decoder signal
-		videoUploader << opened->videoDecoder;
-
-		clip.setDuration(calculateDuration(demuxer));
-		clip.setTimeStep(getPeriod(opened->getFrameRate()));
-
-		assert(opened);
-	}
-
-	void asyncOpen(ZuazoBase& base, std::unique_lock<Instance>& lock) {
-		auto& clip = static_cast<FFmpegClip&>(base);
-		assert(&owner.get() == &clip);
-		assert(!opened);
-
-		//Open asynchronously
-		demuxer.asyncOpen(lock); //May throw! (nothing has been done yet, so don't worry about cleaning)
-		videoUploader.asyncOpen(lock);
+		//Open childs asynchronously if possible
+		//May throw! (nothing has been done yet, so don't worry about cleaning)
+		if(lock) {
+			demuxer.asyncOpen(*lock);
+			videoUploader.asyncOpen(*lock);
+		} else {
+			demuxer.open(); 
+			videoUploader.open();
+		}
 
 		//Open the decoders
 		opened = Utils::makeUnique<Open>(demuxer); //TODO create asynchronously
@@ -361,27 +349,16 @@ struct FFmpegClipImpl {
 
 		clip.setDuration(calculateDuration(demuxer));
 		clip.setTimeStep(getPeriod(opened->getFrameRate()));
-
 		assert(opened);
+	}
+
+	void asyncOpen(ZuazoBase& base, std::unique_lock<Instance>& lock) {
+		assert(lock.owns_lock());
+		open(base, &lock);
 		assert(lock.owns_lock());
 	}
 
-	void close(ZuazoBase& base) {
-		auto& clip = static_cast<FFmpegClip&>(base);
-		assert(&owner.get() == &clip);
-		assert(opened);
-
-		clip.setDuration(Duration::max());
-		clip.setTimeStep(Duration());
-
-		opened.reset();
-		videoUploader.close();
-		demuxer.close();
-
-		assert(!opened);
-	}
-
-	void asyncClose(ZuazoBase& base, std::unique_lock<Instance>& lock) {
+	void close(ZuazoBase& base, std::unique_lock<Instance>* lock = nullptr) {
 		auto& clip = static_cast<FFmpegClip&>(base);
 		assert(&owner.get() == &clip);
 		assert(opened);
@@ -391,10 +368,21 @@ struct FFmpegClipImpl {
 
 		opened.reset(); //TODO reset asynchronously
 
-		videoUploader.asyncClose(lock);
-		demuxer.asyncClose(lock);
+		//Close childs asynchronously if possible
+		if(lock) {
+			videoUploader.asyncClose(*lock);
+			demuxer.asyncClose(*lock);
+		} else {
+			videoUploader.close();
+			demuxer.close();
+		}
 
 		assert(!opened);
+	}
+
+	void asyncClose(ZuazoBase& base, std::unique_lock<Instance>& lock) {
+		assert(lock.owns_lock());
+		close(base, &lock);
 		assert(lock.owns_lock());
 	}
 
@@ -461,9 +449,9 @@ FFmpegClip::FFmpegClip(	Instance& instance,
 		std::move(name),
 		{},
 		std::bind(&FFmpegClipImpl::moved, std::ref(**this), std::placeholders::_1),
-		std::bind(&FFmpegClipImpl::open, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegClipImpl::open, std::ref(**this), std::placeholders::_1, nullptr),
 		std::bind(&FFmpegClipImpl::asyncOpen, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
-		std::bind(&FFmpegClipImpl::close, std::ref(**this), std::placeholders::_1),
+		std::bind(&FFmpegClipImpl::close, std::ref(**this), std::placeholders::_1, nullptr),
 		std::bind(&FFmpegClipImpl::asyncClose, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegClipImpl::update, std::ref(**this)) )
 	, VideoBase(
