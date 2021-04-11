@@ -18,8 +18,7 @@ class FFmpegUploader
 	friend FFmpegUploaderImpl;
 public:
 	FFmpegUploader(	Instance& instance, 
-					std::string name, 
-					VideoMode videoMode = VideoMode::ANY);
+					std::string name );
 	FFmpegUploader(const FFmpegUploader& other) = delete;
 	FFmpegUploader(FFmpegUploader&& other);
 	~FFmpegUploader();

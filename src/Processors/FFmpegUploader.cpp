@@ -481,7 +481,7 @@ private:
  * FFmpegUploader
  */
 
-FFmpegUploader::FFmpegUploader(Instance& instance, std::string name, VideoMode videoMode)
+FFmpegUploader::FFmpegUploader(Instance& instance, std::string name)
 	: Utils::Pimpl<FFmpegUploaderImpl>({}, *this)
 	, ZuazoBase(
 		instance, 
@@ -494,7 +494,6 @@ FFmpegUploader::FFmpegUploader(Instance& instance, std::string name, VideoMode v
 		std::bind(&FFmpegUploaderImpl::asyncClose, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegUploaderImpl::update, std::ref(**this)) )
 	, VideoBase(
-		std::move(videoMode),
 		std::bind(&FFmpegUploaderImpl::videoModeCallback, std::ref(**this), std::placeholders::_1, std::placeholders::_2) )
 	, Signal::ProcessorLayout<FFmpeg::FrameStream, Video>(makeProxy((*this)->frameIn), makeProxy((*this)->videoOut))
 {

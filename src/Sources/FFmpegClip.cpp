@@ -397,10 +397,11 @@ struct FFmpegClipImpl {
 		auto& clip = static_cast<FFmpegClip&>(base);
 		assert(&owner.get() == &clip); (void)(clip);
 
-		videoUploader.setVideoModeLimits(videoMode);
+		videoUploader.setVideoMode(videoMode);
 	}
 
-	void videoModeCompatibilityCallback(VideoBase&, std::vector<VideoMode> compatibility) {
+	VideoMode videoModeNegotiationCallback(VideoBase&, std::vector<VideoMode> compatibility) {
+		auto& clip = owner.get();
 		assert(opened);
 		assert(opened->videoStreamIndex >= 0);
 
@@ -413,7 +414,8 @@ struct FFmpegClipImpl {
 		}
 
 		//Update the compatibility in the VideoBase
-		owner.get().setVideoModeCompatibility(std::move(compatibility));
+		clip.setVideoModeCompatibility(std::move(compatibility));
+		return clip.getVideoMode();
 	}
 
 private:
@@ -441,7 +443,6 @@ private:
 
 FFmpegClip::FFmpegClip(	Instance& instance, 
 						std::string name, 
-						VideoMode videoMode,
 						std::string url )
 	: Utils::Pimpl<FFmpegClipImpl>({}, *this, instance, std::move(url))
 	, ZuazoBase(
@@ -455,7 +456,6 @@ FFmpegClip::FFmpegClip(	Instance& instance,
 		std::bind(&FFmpegClipImpl::asyncClose, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegClipImpl::update, std::ref(**this)) )
 	, VideoBase(
-		std::move(videoMode),
 		std::bind(&FFmpegClipImpl::videoModeCallback, std::ref(**this), std::placeholders::_1, std::placeholders::_2) )
 	, ClipBase(
 		Duration::max(), 
@@ -467,8 +467,8 @@ FFmpegClip::FFmpegClip(	Instance& instance,
 	ZuazoBase::registerPad((*this)->videoOut.getOutput());
 
 	//Setup the compatibility callback
-	(*this)->videoUploader.setVideoModeCompatibilityCallback(
-		std::bind(&FFmpegClipImpl::videoModeCompatibilityCallback, std::ref(**this), std::placeholders::_1, std::placeholders::_2)
+	(*this)->videoUploader.setVideoModeNegotiationCallback(
+		std::bind(&FFmpegClipImpl::videoModeNegotiationCallback, std::ref(**this), std::placeholders::_1, std::placeholders::_2)
 	);
 }
 

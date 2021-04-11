@@ -22,8 +22,7 @@ class FFmpegClip
 public:
 	FFmpegClip(	Instance& instance, 
 				std::string name, 
-				VideoMode videoMode = VideoMode::ANY,
-				std::string url = "" );
+				std::string url );
 
 	FFmpegClip(const FFmpegClip& other) = delete;
 	FFmpegClip(FFmpegClip&& other);
