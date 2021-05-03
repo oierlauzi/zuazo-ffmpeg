@@ -7,7 +7,7 @@
 #include <zuazo/Utils/Pool.h>
 #include <zuazo/Signal/Input.h>
 #include <zuazo/Signal/Output.h>
-#include <zuazo/Graphics/Uploader.h>
+#include <zuazo/Graphics/StagedFramePool.h>
 #include <zuazo/FFmpeg/Frame.h>
 #include <zuazo/FFmpeg/Signals.h>
 #include <zuazo/FFmpeg/FFmpegConversions.h>
@@ -31,16 +31,15 @@ namespace Zuazo::Processors {
 
 struct FFmpegUploaderImpl {
 	struct Open {
-		Graphics::Uploader		uploader;
-		FFmpeg::Frame			intermediateFrame;
-		FFmpeg::Frame			dstFrame;
-		FFmpeg::SWScaleContext	swscaleContext;
+		Graphics::StagedFramePool	framePool;
+		FFmpeg::Frame				intermediateFrame;
+		FFmpeg::Frame				dstFrame;
+		FFmpeg::SWScaleContext		swscaleContext;
 
 
 		Open(	const Graphics::Vulkan& vulkan, 
-				const Graphics::Frame::Descriptor& frameDesc, 
-				const Chromaticities& chromaticities) 
-			: uploader(vulkan, frameDesc, chromaticities)
+				const Graphics::Frame::Descriptor& frameDesc ) 
+			: framePool(vulkan, frameDesc)
 			, intermediateFrame()
 			, dstFrame()
 			, swscaleContext()
@@ -59,7 +58,7 @@ struct FFmpegUploaderImpl {
 		~Open() = default;
 
 		Zuazo::Video process(const FFmpeg::Frame& frame) {
-			auto result = uploader.acquireFrame();
+			auto result = framePool.acquireFrame();
 			assert(result);
 			assert(frame.getResolution() == dstFrame.getResolution());
 
@@ -122,11 +121,10 @@ struct FFmpegUploaderImpl {
 			return result;
 		}
 
-		void recreate(const Graphics::Frame::Descriptor& frameDesc, const Chromaticities& chromaticities) {
-			uploader = Graphics::Uploader(
-				uploader.getVulkan(), 
-				frameDesc,
-				chromaticities
+		void recreate(const Graphics::Frame::Descriptor& frameDesc) {
+			framePool = Graphics::StagedFramePool(
+				framePool.getVulkan(), 
+				frameDesc
 			);
 			fillFrameData(dstFrame, frameDesc);
 		}
@@ -266,10 +264,7 @@ struct FFmpegUploaderImpl {
 				{
 					assert(newFrame);
 					uploader.setVideoModeCompatibility(createVideoModeCompatibility(*newFrame)); //May call videoModeCallback() in order to recreate
-				} /*else if () { //TODO evaluate if chromaticities have changed
-					const auto& videoMode = uploader.getVideoMode();
-					videoModeCallback(uploader, videoMode); //This will recreate
-				}*/
+				}
 			} else if(oldFrame && !newFrame) {
 				//Frame has become invalid
 				uploader.setVideoModeCompatibility({});
@@ -299,10 +294,7 @@ struct FFmpegUploaderImpl {
 				assert(frameIn.getLastElement());
 				const auto frameDesc = videoMode.getFrameDescriptor();
 
-				opened->recreate(
-					frameDesc,
-					calculateColorPrimaries(frameDesc, *frameIn.getLastElement())
-				);
+				opened->recreate(frameDesc);
 			} else if (opened && !isValid) {
 				//It has become invalid
 				opened.reset();
@@ -314,8 +306,7 @@ struct FFmpegUploaderImpl {
 
 				opened = Utils::makeUnique<Open>(
 					uploader.getInstance().getVulkan(),
-					frameDesc,
-					calculateColorPrimaries(frameDesc, *frameIn.getLastElement())
+					frameDesc
 				);
 			}
 		}
@@ -342,7 +333,7 @@ private:
 		constexpr auto defaultPixelAspectRatio = AspectRatio(1, 1);
 		const auto defaultColorPrimaries = ColorPrimaries::BT709;
 		const auto defaultColorModel = fmtConversion.isYCbCr ? ColorModel::BT709 : ColorModel::RGB;
-		constexpr auto defaultColorTransferFunction = ColorTransferFunction::BT709;
+		constexpr auto defaultColorTransferFunction = ColorTransferFunction::BT1886;
 		const auto defaultColorRange = fmtConversion.isYCbCr ? ColorRange::ITU_NARROW : ColorRange::FULL;
 
 		const auto resolution = frameResolution;
@@ -445,7 +436,7 @@ private:
 	{
 		FFmpeg::PixelFormat best = FFmpeg::PixelFormat::NONE;
 		int loss;
-		const auto& compatibleFormats = Graphics::Uploader::getSupportedFormats(vulkan);
+		const auto& compatibleFormats = Graphics::StagedFrame::getSupportedFormats(vulkan);
 
 		//Obtain info about the source format
 		const AVPixFmtDescriptor* pixDesc = av_pix_fmt_desc_get(static_cast<AVPixelFormat>(srcFormat));

@@ -112,10 +112,7 @@ Zuazo::ColorModel fromFFmpeg(ColorSpace model) {
 static AVColorTransferCharacteristic toFFmpegLUT(Zuazo::ColorTransferFunction func) {
 	switch(func) {
 	case Zuazo::ColorTransferFunction::LINEAR:			return AVCOL_TRC_LINEAR;
-	case Zuazo::ColorTransferFunction::BT601:			return AVCOL_TRC_SMPTE170M;
-	case Zuazo::ColorTransferFunction::BT709:			return AVCOL_TRC_BT709;
-	case Zuazo::ColorTransferFunction::BT2020_10:		return AVCOL_TRC_BT2020_10;
-	case Zuazo::ColorTransferFunction::BT2020_12:		return AVCOL_TRC_BT2020_12;
+	case Zuazo::ColorTransferFunction::BT1886:			return AVCOL_TRC_BT709;
 	case Zuazo::ColorTransferFunction::GAMMA22:			return AVCOL_TRC_GAMMA22;
 	//case Zuazo::ColorTransferFunction::GAMMA26:		return {}; /*NOT SUPPORTED*/
 	case Zuazo::ColorTransferFunction::GAMMA28:			return AVCOL_TRC_GAMMA28;
@@ -141,10 +138,10 @@ static Zuazo::ColorTransferFunction fromFFmpegLUT(AVColorTransferCharacteristic 
 	 */
 
 	switch(func) {
-    case AVCOL_TRC_BT709:			return Zuazo::ColorTransferFunction::BT709;			//also ITU-R BT1361
+    case AVCOL_TRC_BT709:			return Zuazo::ColorTransferFunction::BT1886;		//also ITU-R BT1361
     case AVCOL_TRC_GAMMA22:			return Zuazo::ColorTransferFunction::GAMMA22;		//also ITU-R BT470M / ITU-R BT1700 625 PAL & SECAM
     case AVCOL_TRC_GAMMA28:			return Zuazo::ColorTransferFunction::GAMMA28; 		//also ITU-R BT470BG
-    case AVCOL_TRC_SMPTE170M:		return Zuazo::ColorTransferFunction::BT601;			//also ITU-R BT601-6 525 or 625 / ITU-R BT1358 525 or 625 / ITU-R BT1700 NTSC
+    case AVCOL_TRC_SMPTE170M:		return Zuazo::ColorTransferFunction::BT1886;		//also ITU-R BT601-6 525 or 625 / ITU-R BT1358 525 or 625 / ITU-R BT1700 NTSC
     case AVCOL_TRC_SMPTE240M:		return Zuazo::ColorTransferFunction::SMPTE240M;	
     case AVCOL_TRC_LINEAR:			return Zuazo::ColorTransferFunction::LINEAR;		//"Linear transfer characteristics"
     //case AVCOL_TRC_LOG:			return {}; /*NOT SUPPORTED*/ 						//"Logarithmic transfer characteristic (100:1 range)"
@@ -152,8 +149,8 @@ static Zuazo::ColorTransferFunction fromFFmpegLUT(AVColorTransferCharacteristic 
     case AVCOL_TRC_IEC61966_2_4:	return Zuazo::ColorTransferFunction::IEC61966_2_4;	//IEC 61966-2-4
     //case AVCOL_TRC_BT1361_ECG:	return {}; /*NOT SUPPORTED*/ 						//ITU-R BT1361 Extended Colour Gamut
     case AVCOL_TRC_IEC61966_2_1:	return Zuazo::ColorTransferFunction::IEC61966_2_1;	//IEC 61966-2-1 (sRGB or sYCC)
-    case AVCOL_TRC_BT2020_10:		return Zuazo::ColorTransferFunction::BT2020_10; 	//ITU-R BT2020 for 10-bit system
-    case AVCOL_TRC_BT2020_12:		return Zuazo::ColorTransferFunction::BT2020_12; 	//ITU-R BT2020 for 12-bit system
+    case AVCOL_TRC_BT2020_10:		return Zuazo::ColorTransferFunction::BT1886; 		//ITU-R BT2020 for 10-bit system
+    case AVCOL_TRC_BT2020_12:		return Zuazo::ColorTransferFunction::BT1886; 		//ITU-R BT2020 for 12-bit system
     case AVCOL_TRC_SMPTE2084:		return Zuazo::ColorTransferFunction::SMPTE2084; 	//SMPTE ST 2084 for 10-, 12-, 14- and 16-bit systems
     //case AVCOL_TRC_SMPTE428:		return {}; /*NOT SUPPORTED*/ 						//SMPTE ST 428-1
     case AVCOL_TRC_ARIB_STD_B67:	return Zuazo::ColorTransferFunction::ARIB_STD_B67; 	//ARIB STD-B67, known as "Hybrid log-gamma"
