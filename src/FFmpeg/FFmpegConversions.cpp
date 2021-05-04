@@ -181,7 +181,9 @@ ColorRange toFFmpeg(Zuazo::ColorRange range) {
 static Zuazo::ColorRange fromFFmpegLUT(AVColorRange range) {
 	switch(range) {
 	case AVCOL_RANGE_JPEG:	return Zuazo::ColorRange::FULL;
-	case AVCOL_RANGE_MPEG: 	return Zuazo::ColorRange::ITU_NARROW;
+	case AVCOL_RANGE_MPEG: 	return Zuazo::ColorRange::ITU_NARROW_FULL_ALPHA;	//TODO. Spec does not define what happens with alpha. 
+																				//This option allows using YCbCr samplers, which may 
+																				//benefit performance
 	default: 				return Zuazo::ColorRange::NONE;
 	}
 }

@@ -334,7 +334,9 @@ private:
 		const auto defaultColorPrimaries = ColorPrimaries::BT709;
 		const auto defaultColorModel = fmtConversion.isYCbCr ? ColorModel::BT709 : ColorModel::RGB;
 		constexpr auto defaultColorTransferFunction = ColorTransferFunction::BT1886;
-		const auto defaultColorRange = fmtConversion.isYCbCr ? ColorRange::ITU_NARROW : ColorRange::FULL;
+		const auto defaultColorRange = fmtConversion.isYCbCr ? ColorRange::ITU_NARROW_FULL_ALPHA : ColorRange::FULL; 	//TODO. Spec does not define what happens with alpha. 
+																														//This option allows using YCbCr samplers, which may 
+																														//benefit performance
 
 		const auto resolution = frameResolution;
 		const auto pixelAspectRatio = (framePixelAspectRatio != AspectRatio(0, 1)) ? framePixelAspectRatio : defaultPixelAspectRatio;
