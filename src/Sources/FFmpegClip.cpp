@@ -29,7 +29,7 @@ namespace Zuazo::Sources {
 
 struct FFmpegClipImpl {
 	struct Open {
-		using DecoderOutput = Signal::Layout::PadProxy<Signal::Output<FFmpeg::FrameStream>>;
+		using DecoderOutput = Signal::PadProxy<Signal::Output<FFmpeg::FrameStream>>;
 
 		FFmpegDemuxer&				demuxer;
 		int							videoStreamIndex;
@@ -300,18 +300,18 @@ struct FFmpegClipImpl {
 
 	std::reference_wrapper<FFmpegClip> 	owner;
 
+	Signal::DummyPad<Video>				videoOut;
+
 	Sources::FFmpegDemuxer 				demuxer;
 	Processors::FFmpegUploader 			videoUploader;
-	
-	Signal::DummyPad<Video>				videoOut;
 
 	std::unique_ptr<Open>				opened;
 
 	FFmpegClipImpl(FFmpegClip& ffmpeg, Instance& instance, std::string url)
 		: owner(ffmpeg)
+		, videoOut(ffmpeg, std::string(Signal::makeOutputName<Zuazo::Video>()))
 		, demuxer(instance, "Demuxer", std::move(url))
 		, videoUploader(instance, "Video Uploader")
-		, videoOut(std::string(Signal::makeOutputName<Zuazo::Video>()))
 	{
 		//Route the output signal
 		videoOut << videoUploader;
@@ -322,6 +322,7 @@ struct FFmpegClipImpl {
 
 	void moved(ZuazoBase& base) {
 		owner = static_cast<FFmpegClip&>(base);
+		videoOut.setLayout(base);
 		auto& clip = static_cast<FFmpegClip&>(base);
 		clip.setRefreshCallback(std::bind(&FFmpegClip::update, std::ref(clip)));
 	}

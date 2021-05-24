@@ -37,10 +37,10 @@ struct FFmpegDemuxerImpl {
 		int							lastIndex;
 
 
-		Open(const char* url) 
+		Open(const FFmpegDemuxer& demux, const char* url) 
 			: formatContext(url)
 			, pool()
-			, pads(createPads(formatContext))
+			, pads(createPads(demux, formatContext))
 			, lastIndex(-1)
 		{
 		}
@@ -74,13 +74,13 @@ struct FFmpegDemuxerImpl {
 		}
 
 	private:
-		static std::vector<Output> createPads(const FFmpeg::InputFormatContext& fmt) {
+		static std::vector<Output> createPads(const FFmpegDemuxer& demux, const FFmpeg::InputFormatContext& fmt) {
 			const size_t streamCount = fmt.getStreams().size();
 			std::vector<Output> result;
 			result.reserve(streamCount);
 
 			for(size_t i = 0; i < streamCount; i++) {
-				result.emplace_back(Signal::makeOutputName<FFmpeg::PacketStream>(i));
+				result.emplace_back(demux, Signal::makeOutputName<FFmpeg::PacketStream>(i));
 			}
 
 			return result;
@@ -98,6 +98,7 @@ struct FFmpegDemuxerImpl {
 
 	~FFmpegDemuxerImpl() = default;
 
+	//TODO moved and update pad references
 
 	void open(ZuazoBase& base, std::unique_lock<Instance>* lock = nullptr) {
 		auto& demux = static_cast<FFmpegDemuxer&>(base);
@@ -106,7 +107,7 @@ struct FFmpegDemuxerImpl {
 		//Create in a unlocked environment
 		if(lock) lock->unlock(); //FIXME, if it throws, lock must be re-locked
 		//May throw! (nothing has been done yet, so don't worry about cleaning)
-		auto newOpened = Utils::makeUnique<Open>(url.c_str()); 
+		auto newOpened = Utils::makeUnique<Open>(demux, url.c_str()); 
 		if(lock) lock->lock();
 		
 		//Apply changes after locking

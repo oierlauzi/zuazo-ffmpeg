@@ -166,6 +166,8 @@ struct FFmpegDecoderImpl {
 						FFmpegDecoder::PixelFormatNegotiationCallback pixFmtCbk,
 						FFmpegDecoder::DemuxCallback demuxCbk) 
 		: owner(owner)
+		, packetIn(owner, std::string(Signal::makeInputName<FFmpeg::PacketStream>()))
+		, frameOut(owner, std::string(Signal::makeOutputName<FFmpeg::PacketStream>()))
 		, codecParameters(std::move(codecPar))
 		, hwAccelEnabled(false)
 		, threadType(FFmpeg::ThreadType::NONE)
@@ -179,6 +181,8 @@ struct FFmpegDecoderImpl {
 
 	void moved(ZuazoBase& base) {
 		owner = static_cast<FFmpegDecoder&>(base);
+		packetIn.setLayout(base);
+		frameOut.setLayout(base);
 	}
 
 
@@ -357,7 +361,7 @@ FFmpegDecoder::FFmpegDecoder(	Instance& instance,
 		std::bind(&FFmpegDecoderImpl::close, std::ref(**this), std::placeholders::_1, nullptr),
 		std::bind(&FFmpegDecoderImpl::asyncClose, std::ref(**this), std::placeholders::_1, std::placeholders::_2),
 		std::bind(&FFmpegDecoderImpl::update, std::ref(**this)) )
-	, Signal::ProcessorLayout<FFmpeg::PacketStream, FFmpeg::FrameStream>(makeProxy((*this)->packetIn), makeProxy((*this)->frameOut))
+	, Signal::ProcessorLayout<FFmpeg::PacketStream, FFmpeg::FrameStream>((*this)->packetIn.getProxy(), (*this)->frameOut.getProxy())
 {
 }
 
