@@ -51,8 +51,8 @@ struct FFmpegClipImpl {
 
 		Open(Sources::FFmpegDemuxer& demux)
 			: demuxer(demux)
-			, videoStreamIndex(getStreamIndex(demuxer, Zuazo::FFmpeg::MediaType::VIDEO))
-			, audioStreamIndex(getStreamIndex(demuxer, Zuazo::FFmpeg::MediaType::AUDIO))
+			, videoStreamIndex(getStreamIndex(demuxer, Zuazo::FFmpeg::MediaType::video))
+			, audioStreamIndex(getStreamIndex(demuxer, Zuazo::FFmpeg::MediaType::video))
 			, videoDecoder(demuxer.getInstance(), "Video Decoder", getCodecParameters(demuxer, videoStreamIndex), Open::pixelFormatNegotiationCallback,	createDemuxCallback(videoStreamIndex))
 			, audioDecoder(demuxer.getInstance(), "Audio Decoder", getCodecParameters(demuxer, audioStreamIndex), {}, 									createDemuxCallback(audioStreamIndex))
 			, decodedTimeStamp(NO_TS)
@@ -123,7 +123,7 @@ struct FFmpegClipImpl {
 					//Time delta is too high, seek the demuxer and flush all buffers
 					demuxer.seek(
 						std::chrono::duration_cast<FFmpeg::Duration>(targetTimeStamp.time_since_epoch()), 
-						FFmpeg::SeekFlags::BACKWARD
+						FFmpeg::SeekFlags::backward
 					);
 
 					demuxer.flush();
@@ -251,7 +251,7 @@ struct FFmpegClipImpl {
 		static void configure(Processors::FFmpegDecoder& decoder) {
 			decoder.setHardwareAccelerationEnabled(true); //Use hardware accel if possible
 			decoder.setThreadCount(0); //Use all available threads
-			decoder.setThreadType(FFmpeg::ThreadType::FRAME); //Don't care about the delay
+			decoder.setThreadType(FFmpeg::ThreadType::frame); //Don't care about the delay
 		}
 
 		static bool isValidIndex(int index) {

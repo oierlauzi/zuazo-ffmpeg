@@ -170,7 +170,7 @@ struct FFmpegDecoderImpl {
 		, frameOut(owner, std::string(Signal::makeOutputName<FFmpeg::PacketStream>()))
 		, codecParameters(std::move(codecPar))
 		, hwAccelEnabled(false)
-		, threadType(FFmpeg::ThreadType::NONE)
+		, threadType(FFmpeg::ThreadType::none)
 		, threadCount(1)
 		, pixFmtCallback(std::move(pixFmtCbk))
 		, demuxCallback(std::move(demuxCbk))
@@ -274,7 +274,7 @@ struct FFmpegDecoderImpl {
 	}
 
 	FFmpeg::HWDeviceType getHardwareDeviceType() const {
-		FFmpeg::HWDeviceType result = FFmpeg::HWDeviceType::NONE;
+		FFmpeg::HWDeviceType result = FFmpeg::HWDeviceType::none;
 
 		if(opened) {
 			const auto* codecCtx = static_cast<const AVCodecContext*>(opened->codecContext);

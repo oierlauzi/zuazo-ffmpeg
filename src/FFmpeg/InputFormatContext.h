@@ -42,8 +42,8 @@ public:
 
 	int									play();
 	int									pause();
-	int									seek(int stream, int64_t timestamp, SeekFlags flags = SeekFlags::NONE);
-	int									seek(Duration timestamp, SeekFlags flags = SeekFlags::NONE);
+	int									seek(int stream, int64_t timestamp, SeekFlags flags = SeekFlags::none);
+	int									seek(Duration timestamp, SeekFlags flags = SeekFlags::none);
 	int									readPacket(Packet& pkt);
 	int									flush();
 

@@ -35,8 +35,8 @@ public:
 	int						getLastStreamIndex() const;
 	FFmpeg::Duration		getDuration() const;
 
-	bool					seek(int stream, int64_t timestamp, FFmpeg::SeekFlags flags = FFmpeg::SeekFlags::NONE);
-	bool					seek(FFmpeg::Duration timestamp, FFmpeg::SeekFlags flags = FFmpeg::SeekFlags::NONE);
+	bool					seek(int stream, int64_t timestamp, FFmpeg::SeekFlags flags = FFmpeg::SeekFlags::none);
+	bool					seek(FFmpeg::Duration timestamp, FFmpeg::SeekFlags flags = FFmpeg::SeekFlags::none);
 	bool					flush();
 
 };

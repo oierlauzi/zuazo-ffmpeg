@@ -85,7 +85,7 @@ struct FFmpegUploaderImpl {
 					0
 				);
 				supportedFormatsEnd = supportedFormatsBegin;
-				while(*supportedFormatsEnd != FFmpeg::PixelFormat::NONE) ++supportedFormatsEnd; //Advance the end pointer til the end of the array
+				while(*supportedFormatsEnd != FFmpeg::PixelFormat::none) ++supportedFormatsEnd; //Advance the end pointer til the end of the array
 
 				//Evaluate if any conversion is needed
 				if(std::find(supportedFormatsBegin, supportedFormatsEnd, dstFrame.getPixelFormat()) != supportedFormatsEnd) {
@@ -333,32 +333,32 @@ private:
 
 		const auto fmtConversion = FFmpeg::fromFFmpeg(getBestConversion(uploader.getInstance().getVulkan(), framePixelFormat));
 		constexpr auto defaultPixelAspectRatio = AspectRatio(1, 1);
-		const auto defaultColorPrimaries = ColorPrimaries::BT709;
-		const auto defaultColorModel = fmtConversion.isYCbCr ? ColorModel::BT709 : ColorModel::RGB;
-		constexpr auto defaultColorTransferFunction = ColorTransferFunction::BT1886;
-		const auto defaultColorRange = fmtConversion.isYCbCr ? ColorRange::ITU_NARROW_FULL_ALPHA : ColorRange::FULL; 	//TODO. Spec does not define what happens with alpha. 
-																														//This option allows using YCbCr samplers, which may 
-																														//benefit performance
+		const auto defaultColorPrimaries = ColorPrimaries::bt709;
+		const auto defaultColorModel = fmtConversion.isYCbCr ? ColorModel::bt709 : ColorModel::rgb;
+		constexpr auto defaultColorTransferFunction = ColorTransferFunction::bt1886;
+		const auto defaultColorRange = fmtConversion.isYCbCr ? ColorRange::ituNarrowFullAlpha : ColorRange::full; 	//TODO. Spec does not define what happens with alpha. 
+																													//This option allows using YCbCr samplers, which may 
+																													//benefit performance
 
 		const auto resolution = frameResolution;
 		const auto pixelAspectRatio = (framePixelAspectRatio != AspectRatio(0, 1)) ? framePixelAspectRatio : defaultPixelAspectRatio;
-		const auto colorPrimaries = (frameColorPrimaries != FFmpeg::ColorPrimaries::NONE) ? FFmpeg::fromFFmpeg(frameColorPrimaries) : defaultColorPrimaries;
-		const auto colorModel = (frameColorSpace != FFmpeg::ColorSpace::NONE) ? FFmpeg::fromFFmpeg(frameColorSpace) : defaultColorModel;
-		const auto colorTransferFunction = (frameColorTransferFunction != FFmpeg::ColorTransferCharacteristic::NONE) ? FFmpeg::fromFFmpeg(frameColorTransferFunction) : defaultColorTransferFunction;
+		const auto colorPrimaries = (frameColorPrimaries != FFmpeg::ColorPrimaries::none) ? FFmpeg::fromFFmpeg(frameColorPrimaries) : defaultColorPrimaries;
+		const auto colorModel = (frameColorSpace != FFmpeg::ColorSpace::none) ? FFmpeg::fromFFmpeg(frameColorSpace) : defaultColorModel;
+		const auto colorTransferFunction = (frameColorTransferFunction != FFmpeg::ColorTransferCharacteristic::none) ? FFmpeg::fromFFmpeg(frameColorTransferFunction) : defaultColorTransferFunction;
 		const auto colorSubsampling = fmtConversion.colorSubsampling;
-		const auto colorRange = (frameColorRange != FFmpeg::ColorRange::NONE) ? FFmpeg::fromFFmpeg(frameColorRange) : defaultColorRange;
+		const auto colorRange = (frameColorRange != FFmpeg::ColorRange::none) ? FFmpeg::fromFFmpeg(frameColorRange) : defaultColorRange;
 		const auto colorFormat = fmtConversion.colorFormat;
 
 		result.emplace_back(
 			Utils::Limit<Rate>(Utils::Any<Rate>()),
 			resolution ? Utils::Limit<Resolution>(Utils::MustBe<Resolution>(resolution)) : Utils::Limit<Resolution>(),
 			pixelAspectRatio != AspectRatio(0, 1) ? Utils::Limit<AspectRatio>(Utils::MustBe<AspectRatio>(pixelAspectRatio)) : Utils::Limit<AspectRatio>(),
-			colorPrimaries != ColorPrimaries::NONE ? Utils::Limit<ColorPrimaries>(Utils::MustBe<ColorPrimaries>(colorPrimaries)) : Utils::Limit<ColorPrimaries>(),
-			colorModel != ColorModel::NONE ? Utils::Limit<ColorModel>(Utils::MustBe<ColorModel>(colorModel)) : Utils::Limit<ColorModel>(),
-			colorTransferFunction != ColorTransferFunction::NONE ? Utils::Limit<ColorTransferFunction>(Utils::MustBe<ColorTransferFunction>(colorTransferFunction)) : Utils::Limit<ColorTransferFunction>(),
-			colorSubsampling != ColorSubsampling::NONE ? Utils::Limit<ColorSubsampling>(Utils::MustBe<ColorSubsampling>(colorSubsampling)) : Utils::Limit<ColorSubsampling>(),
-			colorRange != ColorRange::NONE ? Utils::Limit<ColorRange>(Utils::MustBe<ColorRange>(colorRange)) : Utils::Limit<ColorRange>(),
-			colorFormat != ColorFormat::NONE ? Utils::Limit<ColorFormat>(Utils::MustBe<ColorFormat>(colorFormat)) : Utils::Limit<ColorFormat>()
+			colorPrimaries != ColorPrimaries::none ? Utils::Limit<ColorPrimaries>(Utils::MustBe<ColorPrimaries>(colorPrimaries)) : Utils::Limit<ColorPrimaries>(),
+			colorModel != ColorModel::none ? Utils::Limit<ColorModel>(Utils::MustBe<ColorModel>(colorModel)) : Utils::Limit<ColorModel>(),
+			colorTransferFunction != ColorTransferFunction::none ? Utils::Limit<ColorTransferFunction>(Utils::MustBe<ColorTransferFunction>(colorTransferFunction)) : Utils::Limit<ColorTransferFunction>(),
+			colorSubsampling != ColorSubsampling::none ? Utils::Limit<ColorSubsampling>(Utils::MustBe<ColorSubsampling>(colorSubsampling)) : Utils::Limit<ColorSubsampling>(),
+			colorRange != ColorRange::none ? Utils::Limit<ColorRange>(Utils::MustBe<ColorRange>(colorRange)) : Utils::Limit<ColorRange>(),
+			colorFormat != ColorFormat::none ? Utils::Limit<ColorFormat>(Utils::MustBe<ColorFormat>(colorFormat)) : Utils::Limit<ColorFormat>()
 		);
 		
 		return result;
@@ -374,7 +374,7 @@ private:
 		const auto ite = std::find_if(
 			sideData.cbegin(), sideData.cend(),
 			[] (const FFmpeg::FrameSideData& entry) -> bool {
-				return entry.getType() == FFmpeg::FrameSideDataType::MASTERING_DISPLAY_METADATA;
+				return entry.getType() == FFmpeg::FrameSideDataType::masteringDisplayMetadata;
 			}
 		);
 		if(ite != sideData.cend()) {
@@ -438,7 +438,7 @@ private:
 	static FFmpeg::PixelFormat getBestConversion(	const Graphics::Vulkan& vulkan, 
 													FFmpeg::PixelFormat srcFormat ) 
 	{
-		FFmpeg::PixelFormat best = FFmpeg::PixelFormat::NONE;
+		FFmpeg::PixelFormat best = FFmpeg::PixelFormat::none;
 		int loss;
 		const auto& compatibleFormats = Graphics::StagedFrame::getSupportedFormats(vulkan);
 

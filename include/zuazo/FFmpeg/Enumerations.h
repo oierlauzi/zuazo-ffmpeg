@@ -7,13 +7,13 @@
 
 namespace Zuazo::FFmpeg {
 
-enum class MediaType {
-	NONE = -1,
-	VIDEO = 0,
-	AUDIO = 1,
-	DATA = 2,
-	SUBTITLE = 3,
-	ATTACHMENT = 4,
+enum class MediaType : int {
+	none = -1,
+	video = 0,
+	audio = 1,
+	data = 2,
+	subtitle = 3,
+	attachment = 4,
 };
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(MediaType)
@@ -23,8 +23,8 @@ std::ostream& operator<<(std::ostream& os, MediaType type);
 
 
 
-enum class CodecID {
-	NONE = 0
+enum class CodecID : int {
+	none = 0
 };
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(CodecID)
@@ -37,8 +37,8 @@ std::ostream& operator<<(std::ostream& os, CodecID id);
 
 
 
-enum class PixelFormat {
-	NONE = -1
+enum class PixelFormat : int {
+	none = -1
 };
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(PixelFormat)
@@ -48,8 +48,8 @@ std::ostream& operator<<(std::ostream& os, PixelFormat fmt);
 
 
 
-enum class ColorPrimaries {
-	NONE = 2
+enum class ColorPrimaries : int {
+	none = 2
 };
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(ColorPrimaries)
@@ -59,8 +59,8 @@ std::ostream& operator<<(std::ostream& os, ColorPrimaries prim);
 
 
 
-enum class ColorTransferCharacteristic {
-	NONE = 2
+enum class ColorTransferCharacteristic : int {
+	none = 2
 };
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(ColorTransferCharacteristic)
@@ -70,8 +70,8 @@ std::ostream& operator<<(std::ostream& os, ColorTransferCharacteristic trc);
 
 
 
-enum class ColorSpace {
-	NONE = 2
+enum class ColorSpace : int {
+	none = 2
 };
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(ColorSpace)
@@ -81,8 +81,8 @@ std::ostream& operator<<(std::ostream& os, ColorSpace space);
 
 
 
-enum class ColorRange {
-	NONE = 0
+enum class ColorRange : int {
+	none = 0
 };
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(ColorRange)
@@ -92,8 +92,8 @@ std::ostream& operator<<(std::ostream& os, ColorRange range);
 
 
 
-enum class ChromaLocation {
-	NONE = 0
+enum class ChromaLocation : int {
+	none = 0
 };
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(ChromaLocation)
@@ -103,9 +103,9 @@ std::ostream& operator<<(std::ostream& os, ChromaLocation loc);
 
 
 
-enum class FieldOrder {
-	NONE = 0,
-	PROGRESSIVE = 1
+enum class FieldOrder : int {
+	none = 0,
+	progressive = 1
 };
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(FieldOrder)
@@ -115,8 +115,8 @@ ZUAZO_ENUM_COMP_OPERATORS(FieldOrder)
 
 
 
-enum class PictureType {
-	NONE = 0,
+enum class PictureType : int {
+	none = 0,
 };
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(PictureType)
@@ -126,29 +126,29 @@ std::ostream& operator<<(std::ostream& os, PictureType type);
 
 
 
-enum class FrameSideDataType {
-	PANSCAN,
-	A53_CC,
-	STEREO3D,
-	MATRIXENCODING,
-	DOWNMIX_INFO,
-	REPLAYGAIN,
-	DISPLAYMATRIX,
-	AFD,
-	MOTION_VECTORS,
-	SKIP_SAMPLES,
-	AUDIO_SERVICE_TYPE,
-	MASTERING_DISPLAY_METADATA,
-	GOP_TIMECODE,
-	SPHERICAL,
-	CONTENT_LIGHT_LEVEL,
-	ICC_PROFILE,
-	QP_TABLE_PROPERTIES,
-	QP_TABLE_DATA,
-	S12M_TIMECODE,
-	DYNAMIC_HDR_PLUS,
-	REGIONS_OF_INTEREST,
-	VIDEO_ENC_PARAMS,
+enum class FrameSideDataType : int {
+	panscan,
+	A53cc,
+	stereo3D,
+	matrixEncoding,
+	downmixInfo,
+	replayGain,
+	displayMatrix,
+	sfd,
+	motionVectors,
+	skipSamples,
+	audioServiceType,
+	masteringDisplayMetadata,
+	gopTimecode,
+	spherical,
+	contentLightLevel,
+	iccProfile,
+	qpTablePrototypes,
+	qpTableData,
+	S12MTimecode,
+	dynamicHdrPlus,
+	regionsOfInterest,
+	videoEncParams,
 
 };
 
@@ -159,8 +159,8 @@ ZUAZO_ENUM_COMP_OPERATORS(FrameSideDataType)
 
 
 
-enum class Discard {
-	NONE = -16,
+enum class Discard : int {
+	none = -16,
 };
 
 ZUAZO_ENUM_ARITHMETIC_OPERATORS(Discard)
@@ -170,10 +170,10 @@ ZUAZO_ENUM_COMP_OPERATORS(Discard)
 
 
 
-enum class ThreadType {
-	NONE = 0,
-	FRAME = 1,
-	SLICE = 2
+enum class ThreadType : int {
+	none = 0,
+	frame = 1,
+	slice = 2
 };
 
 ZUAZO_ENUM_BIT_OPERATORS(ThreadType)
@@ -182,12 +182,12 @@ ZUAZO_ENUM_BIT_OPERATORS(ThreadType)
 
 
 
-enum class SeekFlags {
-	NONE		= 0,
-	BACKWARD 	= Utils::bit(0),
-	BYTE		= Utils::bit(1),
-	ANY			= Utils::bit(2),
-	FRAME		= Utils::bit(3),
+enum class SeekFlags : int {
+	none		= 0,
+	backward 	= Utils::bit(0),
+	byte		= Utils::bit(1),
+	any			= Utils::bit(2),
+	frame		= Utils::bit(3),
 };
 
 ZUAZO_ENUM_BIT_OPERATORS(SeekFlags)
@@ -196,19 +196,19 @@ ZUAZO_ENUM_BIT_OPERATORS(SeekFlags)
 
 
 
-enum class HWDeviceType {
-	NONE			= 0, 
-	VDPAU			= 1,
-	CUDA			= 2,
-	VAAPI			= 3,
-	DXVA2			= 4,
-	QSV				= 5,
-	VIDEOTOOLBOX	= 6,
-	D3D11VA			= 7,
-	DRM				= 8,
-	OPENCL			= 9,
-	MEDIACODEC		= 10,
-	VULKAN			= 11
+enum class HWDeviceType : int {
+	none			= 0, 
+	vdpau			= 1,
+	cuda			= 2,
+	vaapi			= 3,
+	dxva2			= 4,
+	qsv				= 5,
+	videotoolbox	= 6,
+	d3D11va			= 7,
+	drm				= 8,
+	opencl			= 9,
+	mediacodec		= 10,
+	vulkan			= 11
 };
 
 ZUAZO_ENUM_BIT_OPERATORS(HWDeviceType)
