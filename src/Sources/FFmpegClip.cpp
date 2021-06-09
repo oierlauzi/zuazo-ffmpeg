@@ -137,10 +137,10 @@ struct FFmpegClipImpl {
 				if(isValidIndex(videoStreamIndex)) {
 					decodedTimeStamp = Math::min(decodedTimeStamp, decode(videoDecoder, videoStreamIndex, streams, targetTimeStamp));
 				}
-				if(isValidIndex(audioStreamIndex)) {
+				/*if(isValidIndex(audioStreamIndex)) { //TODO uncomment when audio decoding is used
 					decodedTimeStamp = Math::min(decodedTimeStamp, decode(audioDecoder, audioStreamIndex, streams, targetTimeStamp));
-				}
-
+				}*/
+				
 				//Wait until decoding is signaled
 				decodingComplete = true;
 				decodingFinishCond.notify_all();

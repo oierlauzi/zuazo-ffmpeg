@@ -134,7 +134,7 @@ enum class FrameSideDataType : int {
 	downmixInfo,
 	replayGain,
 	displayMatrix,
-	sfd,
+	afd,
 	motionVectors,
 	skipSamples,
 	audioServiceType,

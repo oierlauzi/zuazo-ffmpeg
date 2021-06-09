@@ -57,7 +57,7 @@ static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::matrixEncoding
 static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::downmixInfo) == AV_FRAME_DATA_DOWNMIX_INFO, "FrameSideDataType DOWNMIX_INFO value must match");
 static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::replayGain) == AV_FRAME_DATA_REPLAYGAIN, "FrameSideDataType REPLAYGAIN value must match");
 static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::displayMatrix) == AV_FRAME_DATA_DISPLAYMATRIX, "FrameSideDataType DISPLAYMATRIX value must match");
-static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::sfd) == AV_FRAME_DATA_AFD, "FrameSideDataType AFD value must match");
+static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::afd) == AV_FRAME_DATA_AFD, "FrameSideDataType AFD value must match");
 static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::motionVectors) == AV_FRAME_DATA_MOTION_VECTORS, "FrameSideDataType MOTION_VECTORS value must match");
 static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::skipSamples) == AV_FRAME_DATA_SKIP_SAMPLES, "FrameSideDataType SKIP_SAMPLES value must match");
 static_assert(static_cast<AVFrameSideDataType>(FrameSideDataType::audioServiceType) == AV_FRAME_DATA_AUDIO_SERVICE_TYPE, "FrameSideDataType AUDIO_SERVICE_TYPE value must match");

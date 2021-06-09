@@ -8,8 +8,8 @@
 #include <zuazo/Instance.h>
 #include <zuazo/Player.h>
 #include <zuazo/Modules/Window.h>
-#include <zuazo/Consumers/WindowRenderer.h>
-#include <zuazo/Processors/Layers/VideoSurface.h>
+#include <zuazo/Renderers/Window.h>
+#include <zuazo/Layers/VideoSurface.h>
 #include <zuazo/Sources/FFmpegClip.h>
 
 #include <mutex>
@@ -23,45 +23,45 @@ int main(int argc, const char* argv[]) {
 
 	//Instantiate Zuazo as usual. Note that we're loading the Window module
 	Zuazo::Instance::ApplicationInfo appInfo(
-		"FFmpeg Example 00",						//Application's name
+		"Window Example 00",						//Application's name
 		Zuazo::Version(0, 1, 0),					//Application's version
-		Zuazo::Verbosity::GEQ_INFO,					//Verbosity 
+		Zuazo::Verbosity::geqInfo,					//Verbosity 
 		{ Zuazo::Modules::Window::get() }			//Modules
 	);
 	Zuazo::Instance instance(std::move(appInfo));
 	std::unique_lock<Zuazo::Instance> lock(instance);
 
 	//Construct the window object
-	Zuazo::Consumers::WindowRenderer window(
+	Zuazo::Renderers::Window window(
 		instance, 						//Instance
 		"Output Window",				//Layout name
 		Zuazo::Math::Vec2i(1280, 720)	//Window size (in screen coordinates)
 	);
 
-	//configure the negotiation callback
-	window.setVideoModeNegotiationCallback(
-		[] (Zuazo::VideoBase&, const std::vector<Zuazo::VideoMode>& compatibility) -> Zuazo::VideoMode {
-			auto result = compatibility.front();
-			result.setFrameRate(Zuazo::Utils::MustBe<Zuazo::Rate>(result.getFrameRate().highest()));
-			return result;
-		}
-	);
+	//Set the negotiation callback
+	window.setVideoModeNegotiationCallback(Zuazo::DefaultVideoModeNegotiator(Zuazo::FrameRates::P30));
 
 	//Open the window (now becomes visible)
-	window.setResizeable(false); //Disable resizeing, as extra care needs to be taken
 	window.asyncOpen(lock);
 
 	//Create a layer for rendering to the window
-	Zuazo::Processors::Layers::VideoSurface videoSurface(
+	Zuazo::Layers::VideoSurface videoSurface(
 		instance,
 		"Video Surface",
-		&window,
-		window.getVideoMode().getResolutionValue()
+		window.getViewportSize()
+	);
+
+	window.setViewportSizeCallback(
+		std::bind(
+			&Zuazo::Layers::VideoSurface::setSize, 
+			&videoSurface, 
+			std::placeholders::_2
+		)
 	);
 
 	window.setLayers({videoSurface});
-	videoSurface.setScalingMode(Zuazo::ScalingMode::BOXED);
-	videoSurface.setScalingFilter(Zuazo::ScalingFilter::CUBIC);
+	videoSurface.setScalingMode(Zuazo::ScalingMode::box);
+	videoSurface.setScalingFilter(Zuazo::ScalingFilter::nearest);
 	videoSurface.asyncOpen(lock);
 
 	//Create a video source
@@ -72,7 +72,7 @@ int main(int argc, const char* argv[]) {
 	);
 
 	videoClip.play();
-	videoClip.setRepeat(Zuazo::ClipBase::Repeat::REPEAT);
+	videoClip.setRepeat(Zuazo::ClipBase::Repeat::repeat);
 	videoClip.asyncOpen(lock);
 
 	//Create a player for playing the clip
@@ -87,6 +87,7 @@ int main(int argc, const char* argv[]) {
 	getchar();
 	lock.lock();
 
-	std::cout << "\nClip's video-mode:\n";
+	//Show the video mode
+	std::cout << "\nSelected video-mode:\n";
 	std::cout << "\t-" << videoClip.getVideoMode() << "\n";
 }
